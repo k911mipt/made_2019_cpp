@@ -1,0 +1,77 @@
+#include <vector>
+#include <iostream>
+#include "calc.h"
+
+namespace CalculatorTests {
+
+    struct TestCase {
+        const char* expression;
+        bool valid;
+        int answer;
+    };
+
+    std::vector<TestCase> getTests() {
+        std::vector<TestCase> result;
+        result.push_back({ "42", true, 42 });
+        result.push_back({ "45 * 23 - 10 / 5", true, 1033 });
+        result.push_back({ "4/5/", false, 0 });
+        result.push_back({ "88/8/11*   10 + 100 + 4", true, 114 });
+        result.push_back({ "1 + 123456789", true, 123456790 });
+        result.push_back({ "1 + 1234567890", false, 0 });
+        return result;
+    }
+
+    bool runTest(TestCase test) {
+        try {
+            if (!test.valid) {
+                int result;
+                try {
+                    const char* expression = test.expression;
+                    result = Calculator::calc(test.expression);
+                }
+                catch (...) {
+                    return true;
+                }
+                std::cerr << "Failed" << std::endl;
+                std::cerr << "Expected expression '" << test.expression << "' to fail, got " << result << " instead" << std::endl;
+                return false;
+            }
+            const char* expression = test.expression;
+            int result = Calculator::calc(test.expression);
+            if (result == test.answer) {
+                return true;
+            }
+            std::cerr << "Failed" << std::endl;
+            std::cerr << "Expected expression '" << test.expression << "' to be " << test.answer << ", got " << result << " instead" << std::endl;
+        }
+        catch (...) {
+            std::cerr << "Failed" << std::endl;
+            std::cerr << "Expected expression '" << test.expression << "' to be " << test.answer << ", got error instead" << std::endl;
+            return false;
+        }
+        return false;
+    }
+
+    int runTests() {
+        std::vector<TestCase> tests = getTests();
+        int testsCount = tests.size();
+        bool failed = false;
+        for (std::size_t i = 0; i < testsCount; ++i) {
+            std::cout << "Running test " << i + 1 << "/" << testsCount << "... ";
+            bool testResult = runTest(tests[i]);
+            failed = failed || !testResult;
+            if (testResult) {
+                std::cout << "OK";
+            }
+            std::cout << std::endl;
+        }
+        if (!failed) {
+            std::cout << "All tests passed" << std::endl;
+        }
+        return 0;
+    }
+}
+
+int main() {
+    CalculatorTests::runTests();
+}
