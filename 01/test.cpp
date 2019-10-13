@@ -11,14 +11,15 @@ namespace CalculatorTests {
     };
 
     std::vector<TestCase> getTests() {
-        std::vector<TestCase> result;
-        result.push_back({ "42", true, 42 });
-        result.push_back({ "45 * 23 - 10 / 5", true, 1033 });
-        result.push_back({ "4/5/", false, 0 });
-        result.push_back({ "88/8/11*   10 + 100 + 4", true, 114 });
-        result.push_back({ "1 + 123456789", true, 123456790 });
-        result.push_back({ "1 + 1234567890", false, 0 });
-        result.push_back({ "1 --1--2--3+-4", true, 3 });
+        std::vector<TestCase> result = {
+            { "42", true, 42 },
+            { "45 * 23 - 10 / 5", true, 1033 },
+            { "4/5/", false, 0 },
+            { "88/8/11*   10 + 100 + 4", true, 114 },
+            { "1 + 123456789", true, 123456790 },
+            { "1 + 1234567890", false, 0 },
+            { "1 --1--2--3+-4", true, 3 }
+        };
         return result;
     }
 
