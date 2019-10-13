@@ -18,6 +18,7 @@ namespace CalculatorTests {
         result.push_back({ "88/8/11*   10 + 100 + 4", true, 114 });
         result.push_back({ "1 + 123456789", true, 123456790 });
         result.push_back({ "1 + 1234567890", false, 0 });
+        result.push_back({ "1 --1--2--3+-4", true, 3 });
         return result;
     }
 
@@ -54,7 +55,7 @@ namespace CalculatorTests {
 
     int runTests() {
         std::vector<TestCase> tests = getTests();
-        int testsCount = tests.size();
+        std::size_t testsCount = tests.size();
         bool failed = false;
         for (std::size_t i = 0; i < testsCount; ++i) {
             std::cout << "Running test " << i + 1 << "/" << testsCount << "... ";
