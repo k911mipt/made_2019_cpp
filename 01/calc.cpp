@@ -41,17 +41,7 @@ namespace Calculator {
             throw std::invalid_argument(message);
         }
         SKIP_SPACES(expression);
-        char * buffer = new char[len];
-        try {
-            std::memcpy(buffer, start, len);
-            int result = atoi(buffer);
-            delete buffer;
-            return result;
-        }
-        catch (...) {
-            delete buffer;
-            throw;
-        }
+        return atoi(start);
     }
 
     int parseMultDiv(const char* &expression) {
