@@ -8,21 +8,25 @@
     #define INT_MAX INT32_MAX
 #endif
 
-#define SKIP_SPACES(str) while (*expression == space) { expression++; }
-
 namespace Calculator {
     const int maxNumberLength = static_cast<int>(log10(INT_MAX));
     const char space = ' ';
     const char minus = '-';
 
-    inline void skipSign(const char* &str) {
-        if (*str == minus) {
-            str++;
+    inline void skipSpaces(const char* &expression) {
+        while (*expression == space) { 
+            expression++; 
+        }
+    }
+
+    inline void skipSign(const char* &expression) {
+        if (*expression == minus) {
+            expression++;
         }
     }
 
     int parseNumber(const char* &expression) {
-        SKIP_SPACES(expression);
+        skipSpaces(expression);
         const char* start = expression;
         skipSign(expression);
         int len = 0;
@@ -40,7 +44,7 @@ namespace Calculator {
             std::string message = "Can't process numbers with more, than " + std::to_string(maxNumberLength) + " digits";
             throw std::invalid_argument(message);
         }
-        SKIP_SPACES(expression);
+        skipSpaces(expression);
         return atoi(start);
     }
 
