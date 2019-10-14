@@ -36,8 +36,8 @@ namespace Calculator {
         }
         if (len == 0) {
             std::string message("Expected digit '0-9', got '");
-            message.append(1, (*start));
-            message.append("'");
+            message += *start;
+            message += "'";
             throw std::invalid_argument(message);
         }
         if (len > maxNumberLength) {
