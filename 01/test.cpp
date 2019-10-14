@@ -30,7 +30,6 @@ namespace CalculatorTests {
             if (!test.valid) {
                 int result;
                 try {
-                    const char* expression = test.expression;
                     result = Calculator::calc(test.expression);
                 }
                 catch (...) {
@@ -40,7 +39,6 @@ namespace CalculatorTests {
                 std::cerr << "Expected expression '" << test.expression << "' to fail, got " << result << " instead" << std::endl;
                 return false;
             }
-            const char* expression = test.expression;
             int result = Calculator::calc(test.expression);
             if (result == test.answer) {
                 return true;
