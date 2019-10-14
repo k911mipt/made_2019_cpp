@@ -1,4 +1,4 @@
-CC=g++
+CC=g++ -std=c++14
 APP = calculator
 TESTAPP = calculator-test
 EXEC_RUN=./$(APP)
