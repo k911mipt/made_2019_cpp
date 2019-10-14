@@ -15,19 +15,16 @@ namespace Calculator {
     const char space = ' ';
     const char minus = '-';
 
-    int parseSign(const char* &str) {
+    inline void skipSign(const char* &str) {
         if (*str == minus) {
             str++;
-            return -1;
         }
-        return 1;
     }
 
     int parseNumber(const char* &expression) {
         SKIP_SPACES(expression);
-        int sign = 1;
-        sign = parseSign(expression);
         const char* start = expression;
+        skipSign(expression);
         int len = 0;
         while ((*expression >= '0') && (*expression <= '9') && (len < INT_MAX)) {
             expression++;
@@ -47,7 +44,7 @@ namespace Calculator {
         char * buffer = new char[len];
         try {
             std::memcpy(buffer, start, len);
-            int result = atoi(buffer) * sign;
+            int result = atoi(buffer);
             delete buffer;
             return result;
         }
