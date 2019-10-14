@@ -19,7 +19,8 @@ namespace CalculatorTests {
             { "1 + 123456789", true, 123456790 },
             { "1 + 1234567890", false, 0 },
             { "1 --1--2--3+-4", true, 3 },
-            { "25 - 8 / 6 - 0 / 0", false, 0 }
+            { "25 - 8 / 6 - 0 / 0", false, 0 },
+            { "25 - 8 / 6 - 0 */ 0", false, 0 }
         };
         return result;
     }
