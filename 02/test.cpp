@@ -91,7 +91,7 @@ namespace made {
                     }
                     for (int i = 0; i < 5; i++) {
                         if (p1[i + 5] != i) {
-                            throw std::exception("linearity is not consistent");
+                            throw std::logic_error("linearity is not consistent");
                         }
                     }
                 }
@@ -106,7 +106,7 @@ namespace made {
                     allocator.Reset();
                     for (int i = 0; i < 10; i++) {
                         if (p1[i] != i) {
-                            throw std::exception("memory block has been changed with reseting allocator");
+                            throw std::logic_error("memory block has been changed with reseting allocator");
                         }
                     }
                 }
@@ -122,7 +122,7 @@ namespace made {
                     int* p2 = allocator.Alloc(10);
                     for (int i = 0; i < 10; i++) {
                         if (p1[i] != p2[i]) {
-                            throw std::exception("memory block has been reallocated with reseting allocator");
+                            throw std::logic_error("memory block has been reallocated with reseting allocator");
                         }
                     }
                 }

@@ -1,6 +1,8 @@
 #pragma once
 #ifndef LINEAR_ALLOCATOR_HPP_
 #define LINEAR_ALLOCATOR_HPP_
+#include <exception>
+#include <string>
 
 namespace made {
 
@@ -10,7 +12,8 @@ namespace made {
 
         class OutOfMemory : public std::exception {
         public:
-            OutOfMemory() noexcept : std::exception("out of memory") {}
+            OutOfMemory() noexcept : std::exception() {}
+            const char* what() { return "out of memory"; }
         };
 
         template <class T>
@@ -32,7 +35,7 @@ namespace made {
         LinearAllocator<T>::LinearAllocator(size_type max_size) : max_size_(max_size) {
             buffer_ = std::malloc(max_size_ * sizeof(T));
             if (!buffer_) {
-                throw std::exception("failed to allocate capacity buffer");
+                throw std::bad_alloc();
             }
             Reset();
             right_border_ = tail_ + max_size_;
