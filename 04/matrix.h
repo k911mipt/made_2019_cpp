@@ -12,7 +12,7 @@ namespace made {
         class Matrix {
         public:
             Matrix() = default;
-            Matrix(const uint cols, const uint rows): cols_(cols), rows_(rows), data_(new int[cols*rows]) {}
+            Matrix(const uint rows, const uint cols): cols_(cols), rows_(rows), data_(new int[cols*rows]) {}
             ~Matrix() { delete data_; }
             int &operator[](uint index) {
                 if (index >= cols_) {
@@ -20,6 +20,8 @@ namespace made {
                 }
                 return data_[index];
             }
+            const uint rows() { return rows_; }
+            const uint cols() { return cols_; }
         private:
             int *data_ = nullptr;
             uint rows_ = 0;

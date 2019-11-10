@@ -18,12 +18,31 @@ namespace made {
                 Matrix matrix(4, 4);
                 return true;
             }
+
+            bool get_rows() {
+                std::cout << "Getting rows count";
+                Matrix matrix(3, 4);
+                if (matrix.rows() != 3)
+                    return false;
+                return true;
+            }
+
+            bool get_cols() {
+                std::cout << "Getting columns count";
+                Matrix matrix(4, 8);
+                if (matrix.cols() != 8)
+                    return false;
+                return true;
+            }
+            
         }
 
         std::vector<TestFunc> GetTests() {
             using namespace matrix;
             return {
                 create_matrix,
+                get_cols,
+                get_rows,
             };
         }
 
