@@ -220,11 +220,41 @@ namespace made {
                 return true;
             }
 
+            bool parse_and_expect_string_token_parsed_as_string() {
+                std::cout << "Expecting \"0abc\" to be parsed as string";
+                Parser parser;
+                parser.Parse("0abc");
+                if (parser.GetTokens()[0].type != STRING)
+                    return false;
+                return true;
+            }
+
+            bool parse_and_expect_number_token_parsed_as_number() {
+                std::cout << "Expecting \"073732\" to be parsed as number";
+                Parser parser;
+                parser.Parse("073732");
+                if (parser.GetTokens()[0].type != NUMBER)
+                    return false;
+                return true;
+            }
+            
+            bool parse_and_expect_2_tokens() {
+                std::cout << "Getting number of parsed tokens, expecting 2";
+                Parser parser;
+                parser.Parse("0abc 073732");
+                if (parser.GetTokens().size() != 2)
+                    return false;
+                return true;
+            }
+
             std::vector<TestFunc> GetTests() {
                 return {
                     create_parser,
                     parse_string,
-                    parse_and_expect_one_token
+                    parse_and_expect_one_token,
+                    parse_and_expect_string_token_parsed_as_string,
+                    parse_and_expect_number_token_parsed_as_number,
+                    parse_and_expect_2_tokens
                 };
             }
         }
