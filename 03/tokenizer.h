@@ -74,7 +74,7 @@ namespace made {
                 number = std::stoi(data, &pos);
                 return (pos < data.length()) ? STRING : NUMBER;
             }
-            catch (std::exception &e) {
+            catch (std::exception _) {
                 return STRING;
             }
         }
@@ -87,14 +87,15 @@ namespace made {
                     return;
                 }
                 size_t begin, end;
-                begin = 0;
-                SkipSpaces(line, begin);
-                end = begin;
-                TokenType tokenType = SkipNonSpaces(line, end);
-                const std::string const str = line.substr(begin, end - begin);
-                Token t(str, tokenType);
-                //Token a(())
-                tokens_.push_back(t);
+                end = begin = 0;
+                while (begin < line.size()) {
+                    SkipSpaces(line, begin);
+                    end = begin;
+                    TokenType tokenType = SkipNonSpaces(line, end);
+                    const std::string str = line.substr(begin, end - begin);
+                    tokens_.push_back(Token(str, tokenType));
+                    begin = end;
+                }
             }
             const std::vector<Token> GetTokens() {
                 return tokens_;
