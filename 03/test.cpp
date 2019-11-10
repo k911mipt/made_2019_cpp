@@ -2,9 +2,6 @@
 #include <iostream>
 #include "tokenizer.h"
 
-#include "linear_allocator.hpp"
-
-
 namespace made {
 
     namespace test {
@@ -115,6 +112,17 @@ namespace made {
                 return true;
             }
 
+            bool check_before_after_events() {
+                std::cout << "Registering before and after events, expect both to be called";
+                Parser parser;
+                int x = 0;
+                parser.RegisterBeforeParsingEvent([&x]() { x += 5; });
+                parser.RegisterAfterParsingEvent([&x]() { x += 10; });
+                parser.Parse("   12 0abc 073732   ");
+                if (x != 15)
+                    return false;
+                return true;
+            }
             std::vector<TestFunc> GetTests() {
                 return {
                     create_parser,
@@ -126,7 +134,8 @@ namespace made {
                     register_callback,
                     register_string_callback,
                     register_number_callback,
-                    expect_sum_of_parsed_numbers_via_callback
+                    expect_sum_of_parsed_numbers_via_callback,
+                    check_before_after_events
                 };
             }
         }
@@ -154,7 +163,7 @@ namespace made {
                 else {
                     std::cerr << std::endl << "Failed!" << std::endl;
                     if (error_msg != "") {
-                        std::cerr << error_msg;// << std::endl;
+                        std::cerr << error_msg;
                     }
                 }
                 std::cout << std::endl;
@@ -173,5 +182,4 @@ namespace made {
 
 int main() {
     made::test::RunTests(made::test::parser::GetTests);
-    //made::stl::linear_allocator_tests::RunTests();
 }
