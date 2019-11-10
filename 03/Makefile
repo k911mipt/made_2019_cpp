@@ -1,5 +1,5 @@
 CC=g++ -std=c++14
-TESTAPP = linear-allocator-test
+TESTAPP = tokenizer-test
 EXEC_TEST=./$(TESTAPP)
 
 all: build_test test
@@ -10,7 +10,7 @@ test:
 build_test: test.o
 	$(CC) -o $(TESTAPP) test.o
 
-test.o: test.cpp linear_allocator.hpp
+test.o: test.cpp tokenizer.h
 	$(CC) -c test.cpp
 
 clean:

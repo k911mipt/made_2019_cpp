@@ -7,6 +7,7 @@
 #include <cctype>
 #include <cassert>
 #include <functional>
+#include <stdexcept>
 
 namespace made {
 
@@ -24,7 +25,7 @@ namespace made {
             const TokenType type;
             const int getNumber() {
                 if (type != NUMBER) {
-                    throw std::exception("bad type");
+                    throw std::domain_error("can't get number from a string token");
                 }
                 return number_;
             }
