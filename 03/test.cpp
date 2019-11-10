@@ -11,192 +11,16 @@ namespace made {
         typedef bool(*TestFunc)();
         typedef std::vector<TestFunc>(*TestGetter)();
 
-        namespace linear_allocator_tests {
-            
-            using namespace made::stl;
-
-            typedef void(*TestFunc)();
-
-            struct TestCase {
-                TestFunc function;
-                bool expect_out_of_memory;
-            };
-
-            namespace valid_oom {
-
-                void t1() {
-                    LinearAllocator<int> allocator(10);
-                    int *p = allocator.Alloc(11);
-                }
-
-                void t2() {
-                    LinearAllocator<int> allocator(10);
-                    int *p = allocator.Alloc(3);
-                    p = allocator.Alloc(3);
-                    p = allocator.Alloc(3);
-                    p = allocator.Alloc(3);
-                }
-
-                void t3() {
-                    LinearAllocator<int> allocator(10);
-                    int *p = allocator.Alloc(3);
-                    p = allocator.Alloc(3);
-                    p = allocator.Alloc(3);
-                    p = allocator.Alloc(1);
-                    allocator.Reset();
-                    p = allocator.Alloc(11);
-                }
-            }
-
-            namespace valid_reset {
-
-                void t1() {
-                    LinearAllocator<int> allocator(10);
-                    int *p = allocator.Alloc(10);
-                    allocator.Reset();
-                    p = allocator.Alloc(10);
-                }
-
-                void t2() {
-                    LinearAllocator<int> allocator(10);
-                    int *p = allocator.Alloc(3);
-                    p = allocator.Alloc(3);
-                    p = allocator.Alloc(3);
-                    p = allocator.Alloc(1);
-                }
-
-                void t3() {
-                    LinearAllocator<int> allocator(10);
-                    int *p = allocator.Alloc(3);
-                    allocator.Reset();
-                    p = allocator.Alloc(3);
-                    allocator.Reset();
-                    p = allocator.Alloc(3);
-                    allocator.Reset();
-                    p = allocator.Alloc(3);
-                    p = allocator.Alloc(3);
-                    p = allocator.Alloc(3);
-                    p = allocator.Alloc(1);
-                    allocator.Reset();
-                    p = allocator.Alloc(10);
-                }
-            }
-
-            namespace valid_consistency {
-
-                void t1() {
-                    LinearAllocator<int> allocator(10);
-                    // p2 is allocated right after p1.
-                    // Fill p2 with some values,
-                    // then address out of borders of p1,
-                    // assuming it will point to p2 values
-                    // due to linearity consistentcy
-                    int* p1 = allocator.Alloc(5);
-                    int* p2 = allocator.Alloc(5);
-                    for (int i = 0; i < 5; i++) {
-                        p2[i] = i;
-                    }
-                    for (int i = 0; i < 5; i++) {
-                        if (p1[i + 5] != i) {
-                            throw std::logic_error("linearity is not consistent");
-                        }
-                    }
-                }
-
-                void t2() {
-                    LinearAllocator<int> allocator(10);
-                    // Assume reseting doesnt changes state of block
-                    int* p1 = allocator.Alloc(10);
-                    for (int i = 0; i < 10; i++) {
-                        p1[i] = i;
-                    }
-                    allocator.Reset();
-                    for (int i = 0; i < 10; i++) {
-                        if (p1[i] != i) {
-                            throw std::logic_error("memory block has been changed with reseting allocator");
-                        }
-                    }
-                }
-
-                void t3() {
-                    LinearAllocator<int> allocator(10);
-                    // Assume reseting doesnt allocate a new block
-                    int* p1 = allocator.Alloc(10);
-                    for (int i = 0; i < 10; i++) {
-                        p1[i] = i;
-                    }
-                    allocator.Reset();
-                    int* p2 = allocator.Alloc(10);
-                    for (int i = 0; i < 10; i++) {
-                        if (p1[i] != p2[i]) {
-                            throw std::logic_error("memory block has been reallocated with reseting allocator");
-                        }
-                    }
-                }
-            }
-
-            std::vector<TestCase> GetTests() {
-                return {
-                    { valid_oom::t1, true },
-                    { valid_oom::t2, true },
-                    { valid_oom::t3, true },
-                    { valid_reset::t1, false },
-                    { valid_reset::t2, false },
-                    { valid_reset::t3, false },
-                    { valid_consistency::t1, false },
-                    { valid_consistency::t2, false },
-                    { valid_consistency::t3, false },
-                };
-            }
-
-            bool RunTest(TestCase test) {
-                try {
-                    if (!test.expect_out_of_memory) {
-                        test.function();
-                        return true;
-                    }
-                    try {
-                        test.function();
-                    }
-                    catch (made::stl::OutOfMemory _) {
-                        return true;
-                    }
-                    std::cerr << "Failed" << std::endl;
-                    std::cerr << "Expected out of memory" << std::endl;
-                    return false;
-                }
-                catch (std::exception &e) {
-                    std::cerr << "Failed" << std::endl;
-                    std::cerr << e.what() << std::endl;
-                    return false;
-                }
-            }
-
-            int RunTests() {
-                std::vector<TestCase> tests = GetTests();
-                std::size_t tests_count = tests.size();
-                bool failed = false;
-                for (std::size_t i = 0; i < tests_count; ++i) {
-                    std::cout << "Running test " << i + 1 << "/" << tests_count << "... ";
-                    bool test_result = RunTest(tests[i]);
-                    failed = failed || !test_result;
-                    if (test_result) {
-                        std::cout << "OK";
-                    }
-                    std::cout << std::endl;
-                }
-                if (!failed) {
-                    std::cout << "All tests passed" << std::endl;
-                }
-                return 0;
-            }
-
-        }
-
-
         namespace parser {
             using namespace made::parser;
             typedef bool(*TestFunc)();
+
+            namespace token_events {
+                using namespace made::parser;
+                void cb_check_called(Token value) {
+                    std::cout << "Token callback called";
+                }
+            }
 
             bool create_parser() {
                 std::cout << "Creating parser";
@@ -247,6 +71,50 @@ namespace made {
                 return true;
             }
 
+            bool register_callback() {
+                std::cout << "Registering callback, expecting 2 calls";
+                Parser parser;
+                int x = 0;
+                parser.RegisterTokenEvent([&x](Token _) { ++x; });
+                parser.Parse("0abc 073732");
+                if (x != 2)
+                    return false;
+                return true;
+            }
+
+            bool register_string_callback() {
+                std::cout << "Registering string callback, expecting 1 calls";
+                Parser parser;
+                int x = 0;
+                parser.RegisterCustomTokenEvent([&x](Token _) { ++x; }, TokenType::STRING);
+                parser.Parse("0abc 073732");
+                if (x != 1)
+                    return false;
+                return true;
+            }
+
+            bool register_number_callback() {
+                std::cout << "Registering number callback, expecting 2 calls";
+                Parser parser;
+                int x = 0;
+                parser.RegisterCustomTokenEvent([&x](Token _) { ++x; }, TokenType::NUMBER);
+                parser.Parse("12 0abc 073732");
+                if (x != 2)
+                    return false;
+                return true;
+            }
+
+            bool expect_sum_of_parsed_numbers_via_callback() {
+                std::cout << "Registering number callback, expect count sum of numbers in data";
+                Parser parser;
+                int x = 0;
+                parser.RegisterCustomTokenEvent([&x](Token token) { x += token.getNumber(); }, TokenType::NUMBER);
+                parser.Parse("   12 0abc 073732   ");
+                if (x != 73744)
+                    return false;
+                return true;
+            }
+
             std::vector<TestFunc> GetTests() {
                 return {
                     create_parser,
@@ -254,7 +122,11 @@ namespace made {
                     parse_and_expect_one_token,
                     parse_and_expect_string_token_parsed_as_string,
                     parse_and_expect_number_token_parsed_as_number,
-                    parse_and_expect_2_tokens
+                    parse_and_expect_2_tokens,
+                    register_callback,
+                    register_string_callback,
+                    register_number_callback,
+                    expect_sum_of_parsed_numbers_via_callback
                 };
             }
         }
@@ -289,6 +161,9 @@ namespace made {
             }
             if (!failed) {
                 std::cout << "All tests passed" << std::endl;
+            }
+            else {
+                std::cout << "Some tests failed, check log for more details" << std::endl;
             }
             return 0;
         }

@@ -3,82 +3,41 @@
 #define TOKENIZER_H_
 
 #include <string>
-#include <variant>
+#include <cstdlib>
 #include <cctype>
 #include <cassert>
-
-using std::string;
+#include <functional>
 
 namespace made {
 
     namespace parser {
-        using std::string;
-        enum TokenType {
+        enum TokenType { // Must not specify numbers in this enum, its is used as an array indexer!
             NUMBER,
-            STRING
-        };
-
-        //struct TokenType {
-        //    TokenType type;
-        //    //if type == Number
-        //    //    int field
-        //    //else 
-        //    //    string field
-
-        //};
-
-        struct TokenNumber {
-        public:
-            int value;
-            const TokenType type = NUMBER;
-            //    TokenType GetType() { return type; }
-            //private:
-            //    TokenType type = NUMBER;
-        };
-
-        struct TokenString {
-        public:
-            string value;
-            const TokenType type = STRING;
-            //    TokenType GetType() { return type; }
-            //private:
-            //    TokenType type = STRING;
-        };
-        class Tokenizer {
-        public:
-            Tokenizer(std::string line) {
-
-            }
-        private:
-            void Parse() {
-
-            }
-
+            STRING,
+            COUNT // Last element = size of enum
         };
 
         class Token {
         public:
-            //Token(TokenType initial_type) :type(initial_type) {}
-            //Token(const std::string &init_data, TokenType tokenType): data(init_data), type(DetermineTokenType(init_data)) {}
-            Token(const std::string &init_data, TokenType tokenType) : data(init_data), type(tokenType) {}
+            Token(const std::string &init_data, TokenType tokenType) : data_(init_data), type(tokenType), number_(std::atoi(data_.c_str())) {
+            }
             const TokenType type;
+            const int getNumber() {
+                if (type != NUMBER) {
+                    throw std::exception("bad type");
+                }
+                return number_;
+            }
+            const std::string getData() {
+                return data_;
+            }
         private:
-            const std::string data;
-            int number;
-            TokenType DetermineTokenType(const std::string &init_data);
+            const std::string data_;
+            const int number_;
         };
 
-        TokenType Token::DetermineTokenType(const std::string &init_data) {
-            try {
-                size_t pos = 0;
-                number = std::stoi(data, &pos);
-                return (pos < data.length()) ? STRING : NUMBER;
-            }
-            catch (std::exception _) {
-                return STRING;
-            }
-        }
-
+        typedef std::function<void(Token)> TokenEvent;
+        typedef std::function<void()> ParsingEvent;
 
         class Parser {
         public:
@@ -88,22 +47,40 @@ namespace made {
                 }
                 size_t begin, end;
                 end = begin = 0;
+                SkipSpaces(line, begin);
                 while (begin < line.size()) {
-                    SkipSpaces(line, begin);
                     end = begin;
                     TokenType tokenType = SkipNonSpaces(line, end);
-                    const std::string str = line.substr(begin, end - begin);
-                    tokens_.push_back(Token(str, tokenType));
+                    Token token = Token(line.substr(begin, end - begin), tokenType);
+                    tokens_.push_back(token);
+                    ProcessTokenEvents(token);
                     begin = end;
+                    SkipSpaces(line, begin);
                 }
             }
             const std::vector<Token> GetTokens() {
                 return tokens_;
             }
+            void RegisterTokenEvent(TokenEvent cb) {
+                tokensEvents_.push_back(cb);
+            }
+            void RegisterCustomTokenEvent(TokenEvent cb, TokenType tokenType) {
+                tokensCustomEvents_[tokenType].push_back(cb);
+            }
         private:
             std::vector<Token> tokens_;
+            //std::vector<ParsingEvent> parsinEvents_;
+            std::vector<TokenEvent> tokensEvents_;
+            std::vector<TokenEvent> tokensCustomEvents_[TokenType::COUNT];
+            void ProcessTokenEvents(Token token) {
+                for (auto cb : tokensEvents_) {
+                    cb(token);
+                }
+                for (auto cb : tokensCustomEvents_[token.type]) {
+                    cb(token);
+                }
+            }
             void SkipSpaces(std::string &line, size_t &index) {
-                assert(index < line.size());
                 for (; (index < line.size()) && std::isspace(line[index]); ++index);
             }
             TokenType SkipNonSpaces(std::string &line, size_t &index) {
@@ -116,15 +93,6 @@ namespace made {
                 return result ? NUMBER : STRING;
             }
         };
-        /*
-        Написать библиотеку - парсер строк состоящих из следующих токенов :
-
-        * строка
-        * число
-        Число состоит из символов от 0 до 9, строка - все остальные символы.Токены разделены пробелами, символами табуляции и первода строки.
-
-        Пользователь библиотеки должен иметь возможность зарегистрировать колбек - функцию вызываемую каждый раз, когда найден токен, функция получает токен.Должно быть возможно зарегистрировать свой обработчик под каждый тип токена.Также должны быть колбеки вызываемые перед началом парсинга и по его окончанию.
-        */
     }
 }
 #endif  // !TOKENIZER_H_
