@@ -34,7 +34,40 @@ namespace made {
                     return false;
                 return true;
             }
-            
+
+            bool check_index_access() {
+                std::cout << "Checking index access";
+                Matrix matrix(4, 8);
+                matrix[1][0] = 5;
+                matrix[1][0] = 9;
+                if (matrix[1][0] != 9)
+                    return false;
+                return true;
+            }
+
+            bool check_index_access_out_of_rows_range() {
+                std::cout << "Checking index access out of rows range";
+                Matrix matrix(4, 8);
+                try {
+                    matrix[4][0] = 5;
+                }
+                catch (std::out_of_range _) {
+                    return true;
+                }
+                return false;
+            }
+
+            bool check_index_access_out_of_cols_range() {
+                std::cout << "Checking index access out of cols range";
+                Matrix matrix(4, 8);
+                try {
+                    matrix[3][8] = 5;
+                }
+                catch (std::out_of_range _) {
+                    return true;
+                }
+                return false;
+            }
         }
 
         std::vector<TestFunc> GetTests() {
@@ -43,6 +76,9 @@ namespace made {
                 create_matrix,
                 get_cols,
                 get_rows,
+                check_index_access,
+                check_index_access_out_of_rows_range,
+                check_index_access_out_of_cols_range,
             };
         }
 
