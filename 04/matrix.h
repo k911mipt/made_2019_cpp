@@ -3,6 +3,7 @@
 #define MATRIX_H_
 
 #include <stdexcept>
+#include <cstring>
 
 namespace made {
 
