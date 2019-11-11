@@ -68,6 +68,64 @@ namespace made {
                 }
                 return false;
             }
+
+            bool check_multiplier() {
+                std::cout << "Checking multiply by number";
+                Matrix matrix(4, 8);
+                matrix.Clear();
+                for (int i = 0; i < 4; ++i) {
+                    matrix[i][i] = i + 1;
+                }
+                matrix *= 8;
+                for (int i = 0; i < 4; ++i) {
+                    if (matrix[i][i] != (i + 1) * 8) {
+                        return false;
+                    }
+                }
+                return true;
+            }
+
+            bool check_equality() {
+                std::cout << "Checking equality";
+                Matrix matrix1(4, 8);
+                Matrix matrix2(4, 8);
+                matrix1.Clear();
+                matrix2.Clear();
+                for (int i = 0; i < 4; ++i) {
+                    matrix1[i][i] = i + 1;
+                    matrix2[i][i] = (i + 1) * 2;
+                }
+                matrix1 *= 2;
+                return matrix1 == matrix2;;
+            }
+
+            bool check_unequality_size() {
+                std::cout << "Checking unequality by size";
+                Matrix matrix1(4, 8);
+                Matrix matrix2(3, 4);
+                return matrix1 != matrix2;
+            }
+
+            bool check_unequality_dimension() {
+                std::cout << "Checking unequality by dimension";
+                Matrix matrix1(4, 8);
+                Matrix matrix2(8, 4);
+                return matrix1 != matrix2;
+            }
+
+            bool check_unequality_by_values() {
+                std::cout << "Checking unequality by values";
+                Matrix matrix1(4, 8);
+                Matrix matrix2(4, 8);
+                matrix1.Clear();
+                matrix2.Clear();
+                for (int i = 0; i < 4; ++i) {
+                    matrix1[i][i] = i + 1;
+                    matrix2[i][i] = i + 1;
+                }
+                matrix1[3][7] = matrix2[3][7] * 2 + 8;
+                return matrix1 != matrix2;
+            }
         }
 
         std::vector<TestFunc> GetTests() {
@@ -79,6 +137,11 @@ namespace made {
                 check_index_access,
                 check_index_access_out_of_rows_range,
                 check_index_access_out_of_cols_range,
+                check_multiplier,
+                check_equality,
+                check_unequality_size,
+                check_unequality_dimension,
+                check_unequality_by_values,
             };
         }
 
