@@ -76,6 +76,7 @@ namespace made {
 
             template <typename T1, typename T2>
             bool compare_couts(const T1& a, const T2& b) {
+                std::cout << "\t" << a << "\t";
                 std::stringstream stream1, stream2;
                 stream1 << a;
                 stream2 << b;
@@ -122,6 +123,21 @@ namespace made {
                 return true;
             }
 
+            bool adding_bigints() {
+                std::cout << "adding bigints";
+                BigInt a = 1234;
+                BigInt b = 5678;
+                BigInt c;
+                c = a + b;
+                c = a + b + 2;
+                //+2;
+                //c = a + b;
+                //BigInt c = a + 2;
+                //return compare_couts(a, b);
+                return compare_couts(c, 1234+5678 + 2);
+                return true;
+            }
+
             std::vector<TestFunc> GetTests() {
                 return {
                     create_bitint,
@@ -129,6 +145,7 @@ namespace made {
                     cout_bigint,
                     assign_int_to_bigint,
                     assign_bigint_to_bigint,
+                    adding_bigints,
                 };
             }
         }

@@ -7,8 +7,18 @@
 
 #include <cstdlib>
 #include <cstring>
+#include <cmath>
+#include <algorithm>
 
 namespace made {
+
+    namespace stl {
+        class OutOfMemory : public std::exception {
+        public:
+            OutOfMemory() noexcept : std::exception() {}
+            const char* what() { return "out of memory"; }
+        };
+    }
 
     namespace serializer {
         enum class Error
@@ -129,48 +139,23 @@ namespace made {
             value |= value >> 16;
             return tab32[(uint32_t)(value * 0x07C4ACDD) >> 27];
         }
+        //const size_t MAX_DOUBLING_SIZE = 1 << 28;
 
         template <class T>
         class Container {
             //using T = size_t;// TODO remove it
+            static const size_t MAX_DOUBLING_SIZE = 1 << 28 / sizeof(T); // 256 MB
+            static const size_t SIZE_STEP = MAX_DOUBLING_SIZE >> 1; // 128 MB
         public:
             Container() = default;
-            Container(size_t capacity) :capacity_(capacity) {
-                buffer_ = new T[capacity];
-                //std::memset(buffer_, 0, sizeof(buffer_) * capacity);
-                std::memset(buffer_, 0, sizeof(T) * capacity);
-            }
-            Container(const Container& other) {
-                //if (this == &other) {
-                //    return;
-                //}
-                //size_t capacity = other.capacity_;
-                //T* ptr = new T[capacity];
-                //capacity_ = capacity;
-                //size_ = other.size_;
-                //std::copy(other.buffer_, other.buffer_ + capacity_, buffer_);
-                *this = other;
-            }
-            Container& operator=(const Container& other) {
-                if (this == &other) {
-                    return *this;
-                }
-                size_t capacity = other.capacity_;
-                T* ptr = new T[capacity];
-                delete[] buffer_;
-                buffer_ = ptr;
-                capacity_ = capacity;
-                size_ = other.size_;
-                std::copy(other.buffer_, other.buffer_ + capacity_, buffer_);
-                return *this;
-                // TODO no need to make same capacity when copying
-            }
-            ~Container() {
-                delete[] buffer_;
-            }
-            T &operator[](size_t index) {
-                return buffer_[index];
-            }
+            Container(size_t capacity);// :capacity_(capacity);
+            Container(const Container& other) { *this = other; }
+            Container& operator=(const Container& copied);
+            Container& operator=(Container&& moved);
+            ~Container() { delete[] buffer_; }
+            T& operator[](size_t index) { return buffer_[index]; }
+            void SetSize(size_t size);
+            void TrimSize() { for (; (size_ > 0) && (0 == buffer_[size_ - 1]); --size_); }
             friend std::ostream& operator<<(std::ostream& out, const Container& container) {
                 for (size_t i = container.size_ - 1; i > 0; --i) {
                     out << container.buffer_[i];
@@ -181,39 +166,170 @@ namespace made {
         private:
             size_t capacity_ = 0;
             T* buffer_;
-        public:
+            //public:
             size_t size_ = 0;
+            friend class BigInt;
         };
 
-        //template <class T>
-        //std::ostream& operator<<(std::ostream& out, const Container<T>& buffer) {
-        //for (size_t i = 0; i < container.size_; ++i) {
-        //    out << container.buffer_[i];
-        //}
-        //return out;
-        //}
+#pragma region Container
+
+        template <class T>
+        Container<T>::Container(size_t capacity) : capacity_(capacity) {
+            buffer_ = new T[capacity];
+            std::memset(buffer_, 0, sizeof(T) * capacity);
+        }
+
+        template <class T>
+        Container<T>& Container<T>::operator=(const Container<T>& copied) {
+            if (this == &copied) {
+                return *this;
+            }
+            size_t capacity = copied.capacity_;
+            T* ptr = new T[capacity];
+            delete[] buffer_;
+            buffer_ = ptr;
+            capacity_ = capacity;
+            size_ = copied.size_;
+            std::copy(copied.buffer_, copied.buffer_ + capacity_, buffer_);
+            return *this;
+        }
+        template <class T>
+        Container<T>& Container<T>::operator=(Container<T>&& moved) {
+            if (this == &moved) {
+                return *this;
+            }
+            delete[] buffer_;
+            buffer_ = moved.buffer_;
+            moved.buffer_ = nullptr;
+            capacity_ = moved.capacity_;
+            size_ = moved.size_;
+            return *this;
+        }
+
+        template <class T>
+        void Container<T>::SetSize(size_t size) {
+            size_t capacity = capacity_;
+            while ((size > capacity) && (capacity < MAX_DOUBLING_SIZE)) {
+                capacity *= 2;
+            }
+            while ((size > capacity) && (capacity < SIZE_MAX - SIZE_STEP)) {
+                capacity += SIZE_STEP;
+            }
+            if (size > capacity) {
+                throw stl::OutOfMemory();
+            }
+            T* ptr = new T[capacity];
+            std::copy(buffer_, buffer_ + size_, ptr);
+            std::memset(ptr + size_, 0, sizeof(T) * (capacity - size_));
+            delete[] buffer_;
+            buffer_ = ptr;
+            size_ = size;
+        }
+#pragma endregion 
+
 
         class BigInt {
-            const size_t BASE = 10;
+            const size_t BASE = 100;
+            using base_t = uint32_t;
             const size_t INIT_SIZE = size_t(log10(SIZE_MAX) / log10(BASE)) + 1;
         public:
             BigInt() = default;
             template<typename Tint>
-            BigInt(Tint number) : sign(number >= 0) {
+            BigInt(const Tint number) : sign(number >= 0) {
                 size_t module = abs(number);
                 size_t next = 0;
                 while (module) {
-                    digits[next++] = module % BASE;
+                    digits[next++] = (base_t)(module % BASE);
                     module /= BASE;
                 }
                 digits.size_ = next;
+                //digits.SetSize(next + 20);
+            }
+            BigInt(const BigInt& other) { *this = other; }
+            BigInt& operator=(const BigInt& copied) {
+                if (this == &copied) {
+                    return *this;
+                }
+                sign = copied.sign;
+                digits = copied.digits;
+                return *this;
+            }
+            BigInt& operator=(BigInt&& moved) {
+                if (this == &moved) {
+                    return *this;
+                }
+                sign = moved.sign;
+                digits = std::move(moved.digits);
+                return *this;
             }
             ~BigInt() = default;
+
+            void AddAbs(const BigInt& other) {
+                size_t old_size = digits.size_;
+                digits.SetSize(std::max(digits.size_, other.digits.size_) + 1);
+                unsigned int carry = 0;
+                size_t min_size = std::min(digits.size_, other.digits.size_);
+                base_t* a = digits.buffer_;
+                base_t* b = other.digits.buffer_;
+                for (size_t i = 0; i < min_size; ++i, ++a, ++b) {
+                    unsigned int temp_carry = (BASE - *b - carry) <= *a;
+                    *a = (*a + *b + carry) % BASE;
+                    carry = temp_carry;
+                    //digits[i] = (digits[i] + copied.digits[i]) % BASE;
+                }
+                b = old_size < other.digits.size_ ? b : a;
+                //for (size_t i = min_size; (i < digits.size_) && carry; ++i) {
+                for (size_t i = min_size; (i < digits.size_); ++i) {
+                    unsigned int temp_carry = (BASE - carry) <= *a;
+                    *a = (*b + carry) % BASE;
+                    carry = temp_carry;
+                }
+                digits.TrimSize();
+                //for (size_t)
+            }
+
+            void operator+=(const BigInt& other) {
+                if (sign == other.sign) {
+                    AddAbs(other);
+                }
+            }
+
+            const BigInt operator+(const BigInt& other) {
+                BigInt result(*this);
+                result += other;
+                return result;
+            }
+
+            template<typename Tint, class = typename std::enable_if<std::is_integral<Tint>::value>::type>
+            const BigInt operator+(const Tint& other) {
+                BigInt result(*this);
+                result += BigInt(other);
+                return result;
+            }
+
+            //template<class Tint>
+            //friend const BigInt operator+(const BigInt& lhs, Tint& rhs) {
+            //    BigInt b_rhs(rhs);
+            //    //result += BigInt(copied);
+            //    return lhs + b_rhs;
+            //}
+
+            friend const BigInt operator+(BigInt& lhs, int rhs) {
+                BigInt b_rhs(rhs);
+                //result += BigInt(copied);
+                return lhs + b_rhs;
+            }
+
+            friend const BigInt operator+(BigInt& lhs, BigInt& rhs) {
+                BigInt result(lhs);
+                result += rhs;
+                return result;
+            }
 
             friend std::ostream& operator<<(std::ostream& out, const BigInt& number);
         private:
             bool sign;
-            Container<uint32_t> digits = Container<uint32_t>(INIT_SIZE);
+            Container<base_t> digits = Container<base_t>(INIT_SIZE);
             //Container digits(INIT_SIZE);// = Container;
         };
 
