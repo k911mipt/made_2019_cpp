@@ -13,64 +13,6 @@ namespace made {
         typedef bool(*TestFunc)();
         typedef std::vector<TestFunc>(*TestGetter)();
 
-        namespace serializer {
-            using namespace made::serializer;
-
-            struct Data {
-                uint64_t a;
-                bool b;
-                uint64_t c;
-
-                template <class Serializer>
-                Error serialize(Serializer& serializer) {
-                    return serializer(a, b, c);
-                }
-            };
-
-            bool create_serializer() {
-                std::cout << "serializer";
-                std::stringstream stream;
-                Serializer serializer(stream);
-                return true;
-            }
-
-            bool check_serializer_save_execute() {
-                std::cout << "serializing data";
-                std::stringstream stream;
-                Serializer serializer(stream);
-                Data data{ 0, true, 1 };
-                return serializer.save(data) == Error::NoError;
-            }
-
-            bool check_serializer_save_execute_correct() {
-                std::cout << "serializing \"0 true 1\"";
-                std::stringstream stream;
-                Serializer serializer(stream);
-                Data data{ 0, true, 1 };
-                serializer.save(data);
-                return stream.str() == "0 true 1";
-            }
-
-            bool check_deserializer_save_execute_correct() {
-                std::cout << "deserializing \"0 true 1\"";
-                std::stringstream stream;
-                stream.str("0 true 1");
-                Deserializer deserializer(stream);
-                Data data;
-                Error error = deserializer.load(data);
-                return ((error == Error::NoError) && (data.a == 0) && (data.b) && (data.c == 1));
-            }
-
-            bool check_deserializer_save_execute_uncorrect() {
-                std::cout << "deserializing \"0o true 1\"";
-                std::stringstream stream;
-                stream.str("0o true 1");
-                Deserializer deserializer(stream);
-                Data data;
-                return (deserializer.load(data) == Error::CorruptedArchive);
-            }
-        }
-
         namespace long_arithmetic {
             using namespace made::long_arithmetic;
 
@@ -83,12 +25,7 @@ namespace made {
                 return stream1.str() == stream2.str();
             }
 
-            //template <typename T1, typename T2>
-            //bool compare_couts(T1&& e1, T2&& e2) {
-            //    return compare_couts_(std::forward<T1>(e1), std::forward<T2>(e2));
-            //}
-
-            bool create_bitint() {
+            bool create_bigint() {
                 std::cout << "creating BigInt";
                 BigInt number;
                 return true;
@@ -124,42 +61,60 @@ namespace made {
             }
 
             bool adding_bigints() {
-                std::cout << "adding bigints";
+                std::cout << "adding bigints ";
                 BigInt a = 1234;
                 BigInt b = 5678;
                 BigInt c;
-                c = a + b;
-                c = a + b + 2;
-                //+2;
-                //c = a + b;
-                //BigInt c = a + 2;
-                //return compare_couts(a, b);
-                return compare_couts(c, 1234+5678 + 2);
+                c = a + b; // 1234 + 5678 = 6912
+                c = c + a + 2; // 6912 + 1234 + 2 = 8148
+                c = b + 2 + c; // 5678 + 2 + 8148 = 13828
+                c += 2; // 13828 + 2 = 13830
+                c++; // 13830 + 1 = 13831
+                c = 100500 + c; // 100500 + 13831 = 114331
+                std::cout << c << " ";
+                return compare_couts(c, 114331);
                 return true;
+            }
+
+            bool brainfuck_increments() {
+                std::cout << "i=5; i = i++ + ++i";
+                size_t i = 5;
+                BigInt j = i;
+                i = i++ + ++i;
+                j = j++ + ++j;
+                return compare_couts(j, i);
+            }
+
+            bool check_unary() {
+                std::cout << "unary";
+                BigInt i = -15;
+                i = -i;
+                return compare_couts(i, 15);
+            }
+
+            bool check_subtract() {
+                std::cout << "unary";
+                BigInt a = 1234;
+                BigInt b = 5678;
+                BigInt c;
+                c = b - a - b;
+                return compare_couts(c, -a);
             }
 
             std::vector<TestFunc> GetTests() {
                 return {
-                    create_bitint,
+                    create_bigint,
                     create_bigint_init_literal,
                     cout_bigint,
                     assign_int_to_bigint,
                     assign_bigint_to_bigint,
                     adding_bigints,
+                    brainfuck_increments,
+                    check_unary,
+                    check_subtract,
                 };
             }
         }
-
-        //std::vector<TestFunc> GetTests() {
-        //    using namespace serializer;
-        //    return {
-        //        create_serializer,
-        //        check_serializer_save_execute,
-        //        check_serializer_save_execute_correct,
-        //        check_deserializer_save_execute_correct,
-        //        check_deserializer_save_execute_uncorrect,
-        //    };
-        //}
 
         int RunTests(const TestGetter &tests_getter) {
             std::vector<TestFunc> tests = tests_getter();

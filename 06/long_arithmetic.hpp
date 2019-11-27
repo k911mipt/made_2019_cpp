@@ -18,114 +18,21 @@ namespace made {
             OutOfMemory() noexcept : std::exception() {}
             const char* what() { return "out of memory"; }
         };
-    }
 
-    namespace serializer {
-        enum class Error
-        {
-            NoError,
-            CorruptedArchive
-        };
+        template< typename T >
+        T Abs(T val) {
+            if constexpr (std::is_signed_v<T>)
+                return((val <= -1) ? -val : val);
+            else if constexpr (std::is_unsigned_v<T>)
+                return val;
+            else
+                static_assert(false, "Unsupported type");
+        }
 
-        class Serializer
-        {
-            static constexpr char Separator = ' ';
-        public:
-            explicit Serializer(std::ostream& out) : out_(out) {}
+        template <typename T> int Sign(T val) {
+            return (T(0) < val) - (val < T(0));
+        }
 
-            template <class T>
-            Error save(T& object) {
-                return object.serialize(*this);
-            }
-
-            template <class... ArgsT>
-            Error operator()(ArgsT... args) {
-                auto flags = out_.flags();
-                out_ << std::boolalpha; // interpret boolean as "true"/"false" string instead of "0"/"1"
-                auto result = process(args...);
-                out_.flags(flags);
-                return result;
-            }
-
-        private:
-            std::ostream& out_;
-
-            template <class T>
-            Error process(T& value) {
-                return value.serialize(*this);
-            }
-
-            Error process(bool value) {
-                out_ << value;
-                return Error::NoError;
-            }
-
-            Error process(uint64_t value) {
-                out_ << value;
-                return Error::NoError;
-            }
-
-            template <class T, class... ArgsT>
-            Error process(T& value, ArgsT&... args) {
-                Error error = process(value);
-                if (error != Error::NoError) {
-                    return error;
-                }
-                out_ << Separator;
-                return process(args...);
-            }
-        };
-
-        class Deserializer {
-        public:
-            explicit Deserializer(std::istream& in) : in_(in) {}
-
-            template <class T>
-            Error load(T& object) {
-                Error result = object.serialize(*this);
-                if (!in_.eof()) return Error::CorruptedArchive;
-                return result;
-            }
-
-            template <class... ArgsT>
-            Error operator()(ArgsT&... args) {
-                auto flags = in_.flags();
-                in_ >> std::boolalpha; // interpret boolean as "true"/"false" string instead of "0"/"1"
-                auto result = process(args...);
-                in_.flags(flags);
-                return result;
-            }
-
-        private:
-            std::istream& in_;
-
-            template <class T>
-            Error process(T& value) {
-                return value.serialize(*this);
-            }
-
-            Error process(bool& value) {
-                in_ >> value;
-                return Error::NoError;
-            }
-
-            Error process(uint64_t& value) {
-                in_ >> value;
-                return Error::NoError;
-            }
-
-            template <class T, class... ArgsT>
-            Error process(T& value, ArgsT&... args) {
-                Error error = process(value);
-                if (error != Error::NoError) {
-                    return error;
-                }
-                return process(args...);
-            }
-        };
-    }
-
-    namespace long_arithmetic {
         const int tab32[32] = {
              0,  9,  1, 10, 13, 21,  2, 29,
             11, 14, 16, 18, 22, 25,  3, 30,
@@ -139,6 +46,10 @@ namespace made {
             value |= value >> 16;
             return tab32[(uint32_t)(value * 0x07C4ACDD) >> 27];
         }
+    }
+
+    namespace long_arithmetic {
+
         //const size_t MAX_DOUBLING_SIZE = 1 << 28;
 
         template <class T>
@@ -208,6 +119,7 @@ namespace made {
 
         template <class T>
         void Container<T>::SetSize(size_t size) {
+            if (size == size_) return;
             size_t capacity = capacity_;
             while ((size > capacity) && (capacity < MAX_DOUBLING_SIZE)) {
                 capacity *= 2;
@@ -228,121 +140,245 @@ namespace made {
 #pragma endregion 
 
 
+
         class BigInt {
-            const size_t BASE = 100;
             using base_t = uint32_t;
+            static const base_t BASE = 10; //1e9
+            //const base_t MAX_BASE_TYPE_VALUE = (~0 >> 1) - 1 ;
+            // TODO static assert size;
+            //using base_t = int32_t;
             const size_t INIT_SIZE = size_t(log10(SIZE_MAX) / log10(BASE)) + 1;
         public:
             BigInt() = default;
-            template<typename Tint>
-            BigInt(const Tint number) : sign(number >= 0) {
-                size_t module = abs(number);
-                size_t next = 0;
-                while (module) {
-                    digits[next++] = (base_t)(module % BASE);
-                    module /= BASE;
-                }
-                digits.size_ = next;
-                //digits.SetSize(next + 20);
-            }
+            template<typename Tint, class = typename std::enable_if<std::is_integral<Tint>::value>::type>
+            BigInt(const Tint number);
             BigInt(const BigInt& other) { *this = other; }
-            BigInt& operator=(const BigInt& copied) {
-                if (this == &copied) {
-                    return *this;
-                }
-                sign = copied.sign;
-                digits = copied.digits;
-                return *this;
-            }
-            BigInt& operator=(BigInt&& moved) {
-                if (this == &moved) {
-                    return *this;
-                }
-                sign = moved.sign;
-                digits = std::move(moved.digits);
-                return *this;
-            }
+            BigInt& operator=(const BigInt& copied);
+            BigInt& operator=(BigInt&& moved);
             ~BigInt() = default;
 
-            void AddAbs(const BigInt& other) {
-                size_t old_size = digits.size_;
-                digits.SetSize(std::max(digits.size_, other.digits.size_) + 1);
-                unsigned int carry = 0;
-                size_t min_size = std::min(digits.size_, other.digits.size_);
-                base_t* a = digits.buffer_;
-                base_t* b = other.digits.buffer_;
-                for (size_t i = 0; i < min_size; ++i, ++a, ++b) {
-                    unsigned int temp_carry = (BASE - *b - carry) <= *a;
-                    *a = (*a + *b + carry) % BASE;
-                    carry = temp_carry;
-                    //digits[i] = (digits[i] + copied.digits[i]) % BASE;
-                }
-                b = old_size < other.digits.size_ ? b : a;
-                //for (size_t i = min_size; (i < digits.size_) && carry; ++i) {
-                for (size_t i = min_size; (i < digits.size_); ++i) {
-                    unsigned int temp_carry = (BASE - carry) <= *a;
-                    *a = (*b + carry) % BASE;
-                    carry = temp_carry;
-                }
-                digits.TrimSize();
-                //for (size_t)
-            }
+            BigInt operator-();
+            void operator+=(const BigInt& other);
+            void operator-=(const BigInt& other);
 
-            void operator+=(const BigInt& other) {
-                if (sign == other.sign) {
-                    AddAbs(other);
-                }
-            }
-
-            const BigInt operator+(const BigInt& other) {
-                BigInt result(*this);
-                result += other;
-                return result;
-            }
-
+            const BigInt& operator++();
+            const BigInt operator++(int);
+            const BigInt operator+(const BigInt& other) const;
             template<typename Tint, class = typename std::enable_if<std::is_integral<Tint>::value>::type>
-            const BigInt operator+(const Tint& other) {
-                BigInt result(*this);
-                result += BigInt(other);
-                return result;
-            }
+            const BigInt operator+(const Tint other) const;
+            template<typename Tint, class = typename std::enable_if<std::is_integral<Tint>::value>::type> // IGNORE VS2017 IntelliSense complains E2611
+            friend const BigInt operator+(const Tint lhs, const BigInt& rhs);
 
-            //template<class Tint>
-            //friend const BigInt operator+(const BigInt& lhs, Tint& rhs) {
-            //    BigInt b_rhs(rhs);
-            //    //result += BigInt(copied);
-            //    return lhs + b_rhs;
-            //}
-
-            friend const BigInt operator+(BigInt& lhs, int rhs) {
-                BigInt b_rhs(rhs);
-                //result += BigInt(copied);
-                return lhs + b_rhs;
-            }
-
-            friend const BigInt operator+(BigInt& lhs, BigInt& rhs) {
-                BigInt result(lhs);
-                result += rhs;
-                return result;
-            }
+            const BigInt operator-(const BigInt& other) const;
 
             friend std::ostream& operator<<(std::ostream& out, const BigInt& number);
         private:
-            bool sign;
+            bool is_positive_;
             Container<base_t> digits = Container<base_t>(INIT_SIZE);
-            //Container digits(INIT_SIZE);// = Container;
+
+            bool LessAbs(const BigInt& rhs);
+            int CompareAbs(const BigInt& rhs);
+            void AddAbs(const BigInt& other);
+            void SubtractAbs(const BigInt& other, int comparison);
         };
 
+#pragma region BigInt
+        template<typename Tint, class>
+        inline BigInt::BigInt(const Tint number) : is_positive_(number >= 0) {
+            size_t module = stl::Abs(number);
+            size_t next = 0;
+            int sign = stl::Sign(number);
+            while (module) {
+                digits[next++] = (base_t)(module % BASE);
+                module /= BASE;
+            }
+            digits.size_ = next;
+        }
+
+        BigInt& BigInt::operator=(const BigInt & copied) {
+            if (this == &copied) {
+                return *this;
+            }
+            is_positive_ = copied.is_positive_;
+            digits = copied.digits;
+            return *this;
+        }
+
+        BigInt& BigInt::operator=(BigInt && moved) {
+            if (this == &moved) {
+                return *this;
+            }
+            is_positive_ = moved.is_positive_;
+            digits = std::move(moved.digits);
+            return *this;
+        }
+
+        inline BigInt BigInt::operator-() {
+            BigInt result(*this);
+            result.is_positive_ = !is_positive_;
+            return result;
+        }
+
+        void BigInt::operator+=(const BigInt& other) {
+            if (is_positive_ == other.is_positive_) {
+                AddAbs(other);
+                return;
+            }
+            int comparison = CompareAbs(other);
+            SubtractAbs(other, comparison);
+            bool is_less = (comparison == -1);
+            is_positive_ = (is_positive_ != is_less);
+        }
+
+        void BigInt::operator-=(const BigInt& other) {
+            is_positive_ = !is_positive_;
+            *this += other;
+            is_positive_ = !is_positive_;
+            //if (is_positive_ == other.is_positive_) {
+            //    AddAbs(other);
+            //    return;
+            //}
+            //int comparison = CompareAbs(other);
+            //SubtractAbs(other, comparison);
+            //bool is_less = (comparison == -1);
+            //is_positive_ = (is_positive_ != is_less);
+        }
+
+        const BigInt& BigInt::operator++() {
+            *this += 1;
+            return *this;
+        }
+
+        const BigInt BigInt::operator++(int) {
+            BigInt result(*this);
+            *this += 1;
+            return result;
+        }
+
+        const BigInt BigInt::operator+(const BigInt& other) const {
+            BigInt result(*this);
+            result += other;
+            return result;
+        }
+
+        template<typename Tint, class>
+        const BigInt BigInt::operator+(const Tint other) const {
+            BigInt result(*this);
+            result += BigInt(other);
+            return result;
+        }
+
+        template<typename Tint, class>
+        const BigInt operator+(const Tint lhs, const BigInt& rhs) {
+            return rhs + lhs;
+        }
+
+        const BigInt BigInt::operator-(const BigInt& other) const {
+            BigInt result(*this);
+            result -= other;
+            return result;
+        }
 
 
         std::ostream& operator<<(std::ostream& out, const BigInt& number) {
             std::string result;
-            if (!number.sign) {
+            if (!number.is_positive_) {
                 out << "-";
             }
             out << number.digits;
             return out;
         }
+
+        bool BigInt::LessAbs(const BigInt& rhs) {
+            const size_t size = digits.size_;
+            if (size < rhs.digits.size_) return true;
+            else if (size > rhs.digits.size_) return false;
+            base_t* a = digits.buffer_ + size - 1;
+            base_t* b = rhs.digits.buffer_ + size - 1;
+            for (; a >= digits.buffer_; --a, --b) {
+                if (*a < *b) return true;
+                else if (*a > *b) return false;
+            }
+            return false;
+        }
+
+        int BigInt::CompareAbs(const BigInt& rhs) {
+            const size_t size = digits.size_;
+            if (size < rhs.digits.size_) return -1;
+            else if (size > rhs.digits.size_) return 1;
+            base_t* a = digits.buffer_ + size - 1;
+            base_t* b = rhs.digits.buffer_ + size - 1;
+            for (; a >= digits.buffer_; --a, --b) {
+                if (*a < *b) return -1;
+                else if (*a > *b) return 1;
+            }
+            return 0;
+        }
+
+        void BigInt::AddAbs(const BigInt& other) {
+            size_t min_size = std::min(digits.size_, other.digits.size_);
+            size_t max_size = std::max(digits.size_, other.digits.size_);
+            digits.SetSize(max_size + 1); // set trailing zeros to result number
+            // r = a - b; digits(a) >= digits(b);
+            base_t *r = digits.buffer_;
+            base_t *a = r;
+            base_t *b = other.digits.buffer_;
+            if (other.digits.size_ != min_size) {
+                std::swap(a, b);
+            }
+            unsigned int carry = 0;
+            // iterate over 0 - min_size
+            for (size_t i = 0; i < min_size; ++i, ++a, ++b, ++r) {
+                base_t t = *a + *b + carry;
+                unsigned int temp_carry = BASE <= t;
+                *r = t - temp_carry * BASE;
+                carry = temp_carry;
+            }
+            // iterate over min_size - max_size with carry.
+            for (size_t i = min_size; (i < max_size); ++i, ++a, ++r) {
+                base_t t = *a + carry;
+                unsigned int temp_carry = BASE <= t;
+                *r = t - temp_carry * BASE;
+                carry = temp_carry;
+            }
+            // TODO 1. stop when carry is 0 
+            // 2. memcpy if *a is &other
+            if (carry)
+                *r = 1;
+            digits.TrimSize();
+        }
+
+        void BigInt::SubtractAbs(const BigInt& other, int comparison) {
+            size_t min_size = std::min(digits.size_, other.digits.size_);
+            size_t max_size = std::max(digits.size_, other.digits.size_);
+            digits.SetSize(max_size); // set trailing zeros to result number
+            // 1. r = a - b; a >= b;
+            base_t *r = digits.buffer_;
+            base_t *a = r;
+            base_t *b = other.digits.buffer_;
+            if (comparison == -1) {
+                std::swap(a, b);
+            }
+            unsigned int carry = 0;
+            // 2 iterate over 0 - min_size
+            for (size_t i = 0; i < min_size; ++i, ++a, ++b, ++r) {
+                base_t t = *b + carry;
+                unsigned int temp_carry = *a < t;
+                *r = BASE * temp_carry + *a - t;
+                carry = temp_carry;
+            }
+            // 2 iterate over min_size - max_size with carry. example: 100 - 1
+            for (size_t i = min_size; (i < digits.size_); ++i, ++a, ++r) {
+                unsigned int temp_carry = *a < carry;
+                *r = BASE * temp_carry + *a - carry;
+                carry = temp_carry;
+            }
+            // TODO 1. stop when carry is 0 
+            // 2. memcpy if *a is &other
+            digits.TrimSize();
+        }
+
+#pragma endregion BigInt
 
     }
 }
