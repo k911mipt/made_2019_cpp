@@ -60,7 +60,8 @@ namespace made {
         public:
             Container() = default;
             Container(size_t capacity);// :capacity_(capacity);
-            Container(const Container& other) { *this = other; }
+            Container(const Container& copied);
+            Container(Container&& moved);
             Container& operator=(const Container& copied);
             Container& operator=(Container&& moved);
             ~Container() { delete[] buffer_; }
@@ -76,9 +77,8 @@ namespace made {
             }
         private:
             size_t capacity_ = 0;
-            T* buffer_;
-            //public:
             size_t size_ = 0;
+            T* buffer_;
             friend class BigInt;
         };
 
@@ -88,6 +88,24 @@ namespace made {
         Container<T>::Container(size_t capacity) : capacity_(capacity) {
             buffer_ = new T[capacity];
             std::memset(buffer_, 0, sizeof(T) * capacity);
+        }
+
+        template<class T>
+        inline Container<T>::Container(const Container& copied) :
+            capacity_(copied.capacity_),
+            size_(copied.size_)
+        {
+            buffer_ = new T[capacity_];
+            std::copy(copied.buffer_, copied.buffer_ + capacity_, buffer_);
+        }
+
+        template<class T>
+        inline Container<T>::Container(Container&& moved) :
+            buffer_(moved.buffer_),
+            capacity_(moved.capacity_),
+            size_(moved.size_)
+        {
+            moved.buffer_ = nullptr;
         }
 
         template <class T>
@@ -104,6 +122,7 @@ namespace made {
             std::copy(copied.buffer_, copied.buffer_ + capacity_, buffer_);
             return *this;
         }
+
         template <class T>
         Container<T>& Container<T>::operator=(Container<T>&& moved) {
             if (this == &moved) {
@@ -152,24 +171,53 @@ namespace made {
             BigInt() = default;
             template<typename Tint, class = typename std::enable_if<std::is_integral<Tint>::value>::type>
             BigInt(const Tint number);
-            BigInt(const BigInt& other) { *this = other; }
+            BigInt(const BigInt& copied);
+            BigInt(BigInt&& moved);
             BigInt& operator=(const BigInt& copied);
             BigInt& operator=(BigInt&& moved);
             ~BigInt() = default;
 
-            BigInt operator-();
-            void operator+=(const BigInt& other);
+            BigInt operator-() const;
+
             void operator-=(const BigInt& other);
 
-            const BigInt& operator++();
-            const BigInt operator++(int);
-            const BigInt operator+(const BigInt& other) const;
-            template<typename Tint, class = typename std::enable_if<std::is_integral<Tint>::value>::type>
-            const BigInt operator+(const Tint other) const;
+            BigInt& operator++();
+            BigInt operator++(int);
+
+            BigInt& operator+=(const BigInt& other);
+            BigInt operator+(const BigInt& rhs) const &;
+            BigInt operator+(const BigInt& rhs) && ;
+            BigInt operator+(BigInt&& rhs) const &;
+            BigInt operator+(BigInt&& rhs) &&;
+
+
+            //template<typename Tint, class = typename std::enable_if<std::is_integral<Tint>::value>::type>
+            //const BigInt operator+(const Tint other) const;
+
+            //friend const BigInt operator+(BigInt&& lhs, BigInt&& rhs);
             template<typename Tint, class = typename std::enable_if<std::is_integral<Tint>::value>::type> // IGNORE VS2017 IntelliSense complains E2611
             friend const BigInt operator+(const Tint lhs, const BigInt& rhs);
 
+            const BigInt& operator--();
+            const BigInt operator--(int);
             const BigInt operator-(const BigInt& other) const;
+            //template<typename Tint, class = typename std::enable_if<std::is_integral<Tint>::value>::type>
+            //const BigInt operator-(const Tint other) const;
+            template<typename Tint, class = typename std::enable_if<std::is_integral<Tint>::value>::type> // IGNORE VS2017 IntelliSense complains E2611
+            friend const BigInt operator-(const Tint lhs, const BigInt& rhs);
+
+            const bool operator<(const BigInt& other) const {
+                if (is_positive_ != other.is_positive_)
+                    return !is_positive_;
+                return CompareAbs(other) == (is_positive_ ? -1 : 1);
+            }
+
+            const bool operator<=(const BigInt& other) const {
+                if (is_positive_ != other.is_positive_)
+                    return !is_positive_;
+                int compare = CompareAbs(other);
+                return compare == 0 || compare == (is_positive_ ? -1 : 1);
+            }
 
             friend std::ostream& operator<<(std::ostream& out, const BigInt& number);
         private:
@@ -177,12 +225,14 @@ namespace made {
             Container<base_t> digits = Container<base_t>(INIT_SIZE);
 
             bool LessAbs(const BigInt& rhs);
-            int CompareAbs(const BigInt& rhs);
+            int CompareAbs(const BigInt& rhs) const;
             void AddAbs(const BigInt& other);
-            void SubtractAbs(const BigInt& other, int comparison);
+            void SubtractAbs(const BigInt& other, bool is_less_than_other);
         };
 
 #pragma region BigInt
+
+#pragma region constructors
         template<typename Tint, class>
         inline BigInt::BigInt(const Tint number) : is_positive_(number >= 0) {
             size_t module = stl::Abs(number);
@@ -195,7 +245,16 @@ namespace made {
             digits.size_ = next;
         }
 
-        BigInt& BigInt::operator=(const BigInt & copied) {
+        inline BigInt::BigInt(const BigInt & copied) :
+            is_positive_(copied.is_positive_),
+            digits(copied.digits) {}
+
+        inline BigInt::BigInt(BigInt&& moved) :
+            is_positive_(moved.is_positive_),
+            digits(std::move(moved.digits)) {}
+
+
+        BigInt& BigInt::operator=(const BigInt& copied) {
             if (this == &copied) {
                 return *this;
             }
@@ -204,7 +263,7 @@ namespace made {
             return *this;
         }
 
-        BigInt& BigInt::operator=(BigInt && moved) {
+        BigInt& BigInt::operator=(BigInt&& moved) {
             if (this == &moved) {
                 return *this;
             }
@@ -212,65 +271,68 @@ namespace made {
             digits = std::move(moved.digits);
             return *this;
         }
+#pragma endregion constructors
 
-        inline BigInt BigInt::operator-() {
+        inline BigInt BigInt::operator-() const {
             BigInt result(*this);
             result.is_positive_ = !is_positive_;
             return result;
         }
 
-        void BigInt::operator+=(const BigInt& other) {
-            if (is_positive_ == other.is_positive_) {
-                AddAbs(other);
-                return;
-            }
-            int comparison = CompareAbs(other);
-            SubtractAbs(other, comparison);
-            bool is_less = (comparison == -1);
-            is_positive_ = (is_positive_ != is_less);
-        }
+
 
         void BigInt::operator-=(const BigInt& other) {
             is_positive_ = !is_positive_;
             *this += other;
             is_positive_ = !is_positive_;
-            //if (is_positive_ == other.is_positive_) {
-            //    AddAbs(other);
-            //    return;
-            //}
-            //int comparison = CompareAbs(other);
-            //SubtractAbs(other, comparison);
-            //bool is_less = (comparison == -1);
-            //is_positive_ = (is_positive_ != is_less);
         }
 
-        const BigInt& BigInt::operator++() {
-            *this += 1;
+#pragma region operator+
+        BigInt& BigInt::operator+=(const BigInt& other) {
+            if (is_positive_ == other.is_positive_) {
+                AddAbs(other);
+                return *this;
+            }
+            bool is_less = (CompareAbs(other) == -1);
+            SubtractAbs(other, is_less);
+            is_positive_ = (is_positive_ != is_less);
             return *this;
         }
 
-        const BigInt BigInt::operator++(int) {
+        inline BigInt BigInt::operator+(const BigInt& rhs) const & {
             BigInt result(*this);
-            *this += 1;
+            result += rhs;
             return result;
         }
 
-        const BigInt BigInt::operator+(const BigInt& other) const {
-            BigInt result(*this);
-            result += other;
-            return result;
+        inline BigInt BigInt::operator+(const BigInt& rhs) && {
+            return std::move(*this += rhs);
+        }
+
+        inline BigInt BigInt::operator+(BigInt && rhs) const & {
+            return std::move(rhs += *this);
+        }
+
+        inline BigInt BigInt::operator+(BigInt && rhs) && {
+            return std::move(*this += rhs);
         }
 
         template<typename Tint, class>
-        const BigInt BigInt::operator+(const Tint other) const {
-            BigInt result(*this);
-            result += BigInt(other);
-            return result;
-        }
-
-        template<typename Tint, class>
-        const BigInt operator+(const Tint lhs, const BigInt& rhs) {
+        inline const BigInt operator+(const Tint lhs, const BigInt& rhs) {
             return rhs + lhs;
+        }
+#pragma endregion operator+
+
+#pragma region operator-
+        const BigInt& BigInt::operator--() {
+            *this -= 1;
+            return *this;
+        }
+
+        const BigInt BigInt::operator--(int) {
+            BigInt result(*this);
+            *this -= 1;
+            return result;
         }
 
         const BigInt BigInt::operator-(const BigInt& other) const {
@@ -279,6 +341,31 @@ namespace made {
             return result;
         }
 
+        //template<typename Tint, class>
+        //const BigInt BigInt::operator-(const Tint other) const {
+        //    BigInt result(*this);
+        //    result -= BigInt(other);
+        //    return result;
+        //}
+
+        template<typename Tint, class>
+        const BigInt operator-(const Tint lhs, const BigInt& rhs) {
+            return -rhs + lhs;
+        }
+#pragma endregion operator-
+
+#pragma region operator++ --
+        BigInt & BigInt::operator++() {
+            *this += 1;
+            return *this;
+        }
+
+        BigInt BigInt::operator++(int) {
+            BigInt result(*this);
+            *this += 1;
+            return result;
+        }
+#pragma endregion operator++ --
 
         std::ostream& operator<<(std::ostream& out, const BigInt& number) {
             std::string result;
@@ -302,7 +389,7 @@ namespace made {
             return false;
         }
 
-        int BigInt::CompareAbs(const BigInt& rhs) {
+        int BigInt::CompareAbs(const BigInt& rhs) const {
             const size_t size = digits.size_;
             if (size < rhs.digits.size_) return -1;
             else if (size > rhs.digits.size_) return 1;
@@ -343,12 +430,11 @@ namespace made {
             }
             // TODO 1. stop when carry is 0 
             // 2. memcpy if *a is &other
-            if (carry)
-                *r = 1;
+            *r = carry; // we could overlflow. example: base = 10; 5 + 6 = 11, extra digit in result
             digits.TrimSize();
         }
 
-        void BigInt::SubtractAbs(const BigInt& other, int comparison) {
+        void BigInt::SubtractAbs(const BigInt& other, bool is_less_than_other) {
             size_t min_size = std::min(digits.size_, other.digits.size_);
             size_t max_size = std::max(digits.size_, other.digits.size_);
             digits.SetSize(max_size); // set trailing zeros to result number
@@ -356,7 +442,7 @@ namespace made {
             base_t *r = digits.buffer_;
             base_t *a = r;
             base_t *b = other.digits.buffer_;
-            if (comparison == -1) {
+            if (is_less_than_other) {
                 std::swap(a, b);
             }
             unsigned int carry = 0;

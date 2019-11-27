@@ -64,11 +64,14 @@ namespace made {
                 std::cout << "adding bigints ";
                 BigInt a = 1234;
                 BigInt b = 5678;
-                BigInt c;
-                c = a + b; // 1234 + 5678 = 6912
+                BigInt d = 3;
+                BigInt c = 1;
+                c = a + b + d;
+                c = a + b + 2; // 1234 + 5678 = 6912
                 c = c + a + 2; // 6912 + 1234 + 2 = 8148
                 c = b + 2 + c; // 5678 + 2 + 8148 = 13828
-                c += 2; // 13828 + 2 = 13830
+                //c += 2; // 13828 + 2 = 13830
+                c = c + 2;
                 c++; // 13830 + 1 = 13831
                 c = 100500 + c; // 100500 + 13831 = 114331
                 std::cout << c << " ";
@@ -93,7 +96,7 @@ namespace made {
             }
 
             bool check_subtract() {
-                std::cout << "unary";
+                std::cout << "subtract";
                 BigInt a = 1234;
                 BigInt b = 5678;
                 BigInt c;
@@ -101,17 +104,49 @@ namespace made {
                 return compare_couts(c, -a);
             }
 
+            bool check_comparison1() {
+                std::cout << "compare 1234 < 5678";
+                BigInt a = 1234;
+                BigInt b = 5678;
+                return a < b;
+            }
+
+            bool check_comparison2() {
+                std::cout << "compare -1234 < 5678";
+                BigInt a = 1234;
+                BigInt b = 5678;
+                return -a < b;
+            }
+
+            bool check_comparison3() {
+                std::cout << "compare -5678 < -1234";
+                BigInt a = 1234;
+                BigInt b = 5678;
+                return -b < -a;
+            }
+
+            bool check_comparison4() {
+                std::cout << "compare 5678 < 12345 ";
+                BigInt a = 12345;
+                BigInt b = 5678;
+                return b < a;
+            }
+
             std::vector<TestFunc> GetTests() {
                 return {
-                    create_bigint,
-                    create_bigint_init_literal,
-                    cout_bigint,
-                    assign_int_to_bigint,
-                    assign_bigint_to_bigint,
+                    //create_bigint,
+                    //create_bigint_init_literal,
+                    //cout_bigint,
+                    //assign_int_to_bigint,
+                    //assign_bigint_to_bigint,
                     adding_bigints,
                     brainfuck_increments,
                     check_unary,
                     check_subtract,
+                    check_comparison1,
+                    check_comparison2,
+                    check_comparison3,
+                    check_comparison4,
                 };
             }
         }
