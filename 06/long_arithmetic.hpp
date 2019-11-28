@@ -1,6 +1,6 @@
 #pragma once
-#ifndef SERIALIZER_H_
-#define SERIALIZER_H_
+#ifndef LONG_ARITHMETIC_H_
+#define LONG_ARITHMETIC_H_
 
 #include <ostream>
 #include <type_traits>
@@ -19,6 +19,9 @@ namespace made {
             const char* what() { return "out of memory"; }
         };
 
+        template<typename>
+        inline constexpr bool dependent_false_v{ false };
+
         template< typename T >
         T Abs(T val) {
             if constexpr (std::is_signed_v<T>)
@@ -26,7 +29,7 @@ namespace made {
             else if constexpr (std::is_unsigned_v<T>)
                 return val;
             else
-                static_assert(false, "Unsupported type");
+                static_assert(dependent_false_v<T>, "Unsupported type");
         }
 
         template <typename T> int Sign(T val) {
@@ -50,57 +53,153 @@ namespace made {
 
     namespace long_arithmetic {
 
-        //const size_t MAX_DOUBLING_SIZE = 1 << 28;
+#pragma region BigInt
 
-        template <class T>
-        class Container {
-            //using T = size_t;// TODO remove it
-            static const size_t MAX_DOUBLING_SIZE = 1 << 28 / sizeof(T); // 256 MB
-            static const size_t SIZE_STEP = MAX_DOUBLING_SIZE >> 1; // 128 MB
+#pragma region Primitive integer compatibility template operators
+        class BigInt;
+        // Add
+        template<typename Tint, class = typename std::enable_if<std::is_integral<Tint>::value>::type>
+        BigInt operator+(const Tint lhs, const BigInt& rhs);
+        template<typename Tint, class = typename std::enable_if<std::is_integral<Tint>::value>::type>
+        BigInt operator+(const Tint lhs, const BigInt&& rhs);
+        // Subtract
+        template<typename Tint, class = typename std::enable_if<std::is_integral<Tint>::value>::type>
+        BigInt operator-(const Tint lhs, const BigInt& rhs);
+        template<typename Tint, class = typename std::enable_if<std::is_integral<Tint>::value>::type>
+        BigInt operator-(const Tint lhs, const BigInt&& rhs);
+        // Compare
+        template<typename Tint, class = typename std::enable_if<std::is_integral<Tint>::value>::type>
+        bool operator<(const Tint lhs, const BigInt& rhs);
+        template<typename Tint, class = typename std::enable_if<std::is_integral<Tint>::value>::type>
+        bool operator<=(const Tint lhs, const BigInt& rhs);
+        template<typename Tint, class = typename std::enable_if<std::is_integral<Tint>::value>::type>
+        bool operator==(const Tint lhs, const BigInt& rhs);
+        template<typename Tint, class = typename std::enable_if<std::is_integral<Tint>::value>::type>
+        bool operator>(const Tint lhs, const BigInt& rhs);
+        template<typename Tint, class = typename std::enable_if<std::is_integral<Tint>::value>::type>
+        bool operator>=(const Tint lhs, const BigInt& rhs);
+        template<typename Tint, class = typename std::enable_if<std::is_integral<Tint>::value>::type>
+        bool operator!=(const Tint lhs, const BigInt& rhs);
+#pragma endregion Primitive Integer compatibility template operators
+
+#pragma region Definition
+        class BigInt {
+            using base_t = uint32_t;
+#ifdef _DEBUG
+            static const base_t BASE = 10;
+#else
+            static const base_t BASE = base_t(1e9); // optimizing memory usage
+#endif // _DEBUG
+            const size_t INIT_SIZE = size_t(log10(SIZE_MAX) / log10(BASE)) + 1;
+            class Container;
         public:
-            Container() = default;
-            Container(size_t capacity);// :capacity_(capacity);
-            Container(const Container& copied);
-            Container(Container&& moved);
-            Container& operator=(const Container& copied);
-            Container& operator=(Container&& moved);
-            ~Container() { delete[] buffer_; }
-            T& operator[](size_t index) { return buffer_[index]; }
-            void SetSize(size_t size);
-            void TrimSize() { for (; (size_ > 0) && (0 == buffer_[size_ - 1]); --size_); }
-            friend std::ostream& operator<<(std::ostream& out, const Container& container) {
-                for (size_t i = container.size_ - 1; i > 0; --i) {
-                    out << container.buffer_[i];
-                }
-                out << container.buffer_[0];
-                return out;
-            }
+            // Con(De)structors
+            BigInt() = default;
+            template<typename Tint, class = typename std::enable_if<std::is_integral<Tint>::value>::type>
+            BigInt(const Tint number);
+            BigInt(const BigInt& copied);
+            BigInt(BigInt&& moved);
+            BigInt& operator=(const BigInt& copied);
+            BigInt& operator=(BigInt&& moved);
+            ~BigInt() = default;
+            // Unary minus
+            BigInt operator-() const &;
+            BigInt operator-() && ;
+            // Add
+            BigInt& operator+=(const BigInt& rhs);
+            BigInt operator+(const BigInt& rhs) const &;
+            BigInt operator+(const BigInt& rhs) && ;
+            BigInt operator+(BigInt&& rhs) const &;
+            BigInt operator+(BigInt&& rhs) && ;
+            template<typename Tint, class>
+            friend BigInt operator+(const Tint lhs, const BigInt& rhs);
+            template<typename Tint, class>
+            friend BigInt operator+(const Tint lhs, const BigInt&& rhs);
+            // Subtract
+            BigInt& operator-=(const BigInt& other);
+            BigInt operator-(const BigInt& rhs) const &;
+            BigInt operator-(const BigInt& rhs) && ;
+            BigInt operator-(BigInt&& rhs) const &;
+            BigInt operator-(BigInt&& rhs) && ;
+            template<typename Tint, class>
+            friend BigInt operator-(const Tint lhs, const BigInt& rhs);
+            template<typename Tint, class>
+            friend BigInt operator-(const Tint lhs, const BigInt&& rhs);
+            // Inc(Dec)rements. Only available for lvalues by standard
+            BigInt& operator++() &;
+            BigInt operator++(int) &;
+            BigInt& operator--() &;
+            BigInt operator--(int) &;
+            // Comparisors
+            bool operator<(const BigInt& rhs) const&;
+            bool operator<=(const BigInt& rhs) const&;
+            bool operator==(const BigInt& rhs) const&;
+            bool operator>(const BigInt& rhs) const&;
+            bool operator>=(const BigInt& rhs) const&;
+            bool operator!=(const BigInt& rhs) const&;
+            template<typename Tint, class>
+            friend bool operator<(const Tint lhs, const BigInt& rhs);
+            template<typename Tint, class>
+            friend bool operator<=(const Tint lhs, const BigInt& rhs);
+            template<typename Tint, class>
+            friend bool operator==(const Tint lhs, const BigInt& rhs);
+            template<typename Tint, class>
+            friend bool operator>(const Tint lhs, const BigInt& rhs);
+            template<typename Tint, class>
+            friend bool operator>=(const Tint lhs, const BigInt& rhs);
+            template<typename Tint, class>
+            friend bool operator!=(const Tint lhs, const BigInt& rhs);
+            // Stream
+            friend std::ostream& operator<<(std::ostream& out, const BigInt& number);
+            friend std::ostream& operator<<(std::ostream& out, const Container& container);
         private:
-            size_t capacity_ = 0;
-            size_t size_ = 0;
-            T* buffer_;
-            friend class BigInt;
+            class Container {
+                static const size_t MAX_DOUBLING_SIZE = (1 << 28) / sizeof(base_t); // 256 MB
+                static const size_t SIZE_STEP = MAX_DOUBLING_SIZE >> 1; // 128 MB
+            public:
+                Container() = default;
+                Container(size_t capacity);
+                Container(const Container& copied);
+                Container(Container&& moved);
+                Container& operator=(const Container& copied);
+                Container& operator=(Container&& moved);
+                ~Container() { delete[] buffer_; }
+
+                base_t& operator[](size_t index) { return buffer_[index]; }
+                void SetSize(size_t size);
+                void TrimSize() { for (; (size_ > 0) && (0 == buffer_[size_ - 1]); --size_); }
+                friend std::ostream& operator<<(std::ostream& out, const Container& container);
+            private:
+                size_t capacity_ = 0;
+                size_t size_ = 0;
+                base_t* buffer_;
+                friend class BigInt;
+            };
+            bool is_positive_;
+            Container digits = Container(INIT_SIZE);
+
+            int Compare(const BigInt& rhs) const;
+            int CompareAbs(const BigInt& rhs) const;
+            void AddAbs(const BigInt& other);
+            void SubtractAbs(const BigInt& other, bool is_less_than_other);
         };
+#pragma endregion Definition
 
 #pragma region Container
-
-        template <class T>
-        Container<T>::Container(size_t capacity) : capacity_(capacity) {
-            buffer_ = new T[capacity];
-            std::memset(buffer_, 0, sizeof(T) * capacity);
+        BigInt::Container::Container(size_t capacity) : capacity_(capacity) {
+            buffer_ = new base_t[capacity];
+            std::memset(buffer_, 0, sizeof(base_t) * capacity);
         }
 
-        template<class T>
-        inline Container<T>::Container(const Container& copied) :
+        inline BigInt::Container::Container(const Container& copied) :
             capacity_(copied.capacity_),
             size_(copied.size_)
         {
-            buffer_ = new T[capacity_];
+            buffer_ = new base_t[capacity_];
             std::copy(copied.buffer_, copied.buffer_ + capacity_, buffer_);
         }
 
-        template<class T>
-        inline Container<T>::Container(Container&& moved) :
+        inline BigInt::Container::Container(Container&& moved) :
             buffer_(moved.buffer_),
             capacity_(moved.capacity_),
             size_(moved.size_)
@@ -108,13 +207,12 @@ namespace made {
             moved.buffer_ = nullptr;
         }
 
-        template <class T>
-        Container<T>& Container<T>::operator=(const Container<T>& copied) {
+        BigInt::Container& BigInt::Container::operator=(const Container& copied) {
             if (this == &copied) {
                 return *this;
             }
             size_t capacity = copied.capacity_;
-            T* ptr = new T[capacity];
+            base_t* ptr = new base_t[capacity];
             delete[] buffer_;
             buffer_ = ptr;
             capacity_ = capacity;
@@ -123,8 +221,7 @@ namespace made {
             return *this;
         }
 
-        template <class T>
-        Container<T>& Container<T>::operator=(Container<T>&& moved) {
+        BigInt::Container& BigInt::Container::operator=(Container&& moved) {
             if (this == &moved) {
                 return *this;
             }
@@ -136,8 +233,7 @@ namespace made {
             return *this;
         }
 
-        template <class T>
-        void Container<T>::SetSize(size_t size) {
+        void BigInt::Container::SetSize(size_t size) {
             if (size == size_) return;
             size_t capacity = capacity_;
             while ((size > capacity) && (capacity < MAX_DOUBLING_SIZE)) {
@@ -149,88 +245,14 @@ namespace made {
             if (size > capacity) {
                 throw stl::OutOfMemory();
             }
-            T* ptr = new T[capacity];
+            base_t* ptr = new base_t[capacity];
             std::copy(buffer_, buffer_ + size_, ptr);
-            std::memset(ptr + size_, 0, sizeof(T) * (capacity - size_));
+            std::memset(ptr + size_, 0, sizeof(base_t) * (capacity - size_));
             delete[] buffer_;
             buffer_ = ptr;
             size_ = size;
         }
-#pragma endregion 
-
-
-
-        class BigInt {
-            using base_t = uint32_t;
-            static const base_t BASE = 10; //1e9
-            //const base_t MAX_BASE_TYPE_VALUE = (~0 >> 1) - 1 ;
-            // TODO static assert size;
-            //using base_t = int32_t;
-            const size_t INIT_SIZE = size_t(log10(SIZE_MAX) / log10(BASE)) + 1;
-        public:
-            BigInt() = default;
-            template<typename Tint, class = typename std::enable_if<std::is_integral<Tint>::value>::type>
-            BigInt(const Tint number);
-            BigInt(const BigInt& copied);
-            BigInt(BigInt&& moved);
-            BigInt& operator=(const BigInt& copied);
-            BigInt& operator=(BigInt&& moved);
-            ~BigInt() = default;
-
-            BigInt operator-() const;
-
-            void operator-=(const BigInt& other);
-
-            BigInt& operator++();
-            BigInt operator++(int);
-
-            BigInt& operator+=(const BigInt& other);
-            BigInt operator+(const BigInt& rhs) const &;
-            BigInt operator+(const BigInt& rhs) && ;
-            BigInt operator+(BigInt&& rhs) const &;
-            BigInt operator+(BigInt&& rhs) &&;
-
-
-            //template<typename Tint, class = typename std::enable_if<std::is_integral<Tint>::value>::type>
-            //const BigInt operator+(const Tint other) const;
-
-            //friend const BigInt operator+(BigInt&& lhs, BigInt&& rhs);
-            template<typename Tint, class = typename std::enable_if<std::is_integral<Tint>::value>::type> // IGNORE VS2017 IntelliSense complains E2611
-            friend const BigInt operator+(const Tint lhs, const BigInt& rhs);
-
-            const BigInt& operator--();
-            const BigInt operator--(int);
-            const BigInt operator-(const BigInt& other) const;
-            //template<typename Tint, class = typename std::enable_if<std::is_integral<Tint>::value>::type>
-            //const BigInt operator-(const Tint other) const;
-            template<typename Tint, class = typename std::enable_if<std::is_integral<Tint>::value>::type> // IGNORE VS2017 IntelliSense complains E2611
-            friend const BigInt operator-(const Tint lhs, const BigInt& rhs);
-
-            const bool operator<(const BigInt& other) const {
-                if (is_positive_ != other.is_positive_)
-                    return !is_positive_;
-                return CompareAbs(other) == (is_positive_ ? -1 : 1);
-            }
-
-            const bool operator<=(const BigInt& other) const {
-                if (is_positive_ != other.is_positive_)
-                    return !is_positive_;
-                int compare = CompareAbs(other);
-                return compare == 0 || compare == (is_positive_ ? -1 : 1);
-            }
-
-            friend std::ostream& operator<<(std::ostream& out, const BigInt& number);
-        private:
-            bool is_positive_;
-            Container<base_t> digits = Container<base_t>(INIT_SIZE);
-
-            bool LessAbs(const BigInt& rhs);
-            int CompareAbs(const BigInt& rhs) const;
-            void AddAbs(const BigInt& other);
-            void SubtractAbs(const BigInt& other, bool is_less_than_other);
-        };
-
-#pragma region BigInt
+#pragma endregion Container
 
 #pragma region constructors
         template<typename Tint, class>
@@ -273,28 +295,27 @@ namespace made {
         }
 #pragma endregion constructors
 
-        inline BigInt BigInt::operator-() const {
+#pragma region Unary
+        inline BigInt BigInt::operator-() const & {
             BigInt result(*this);
             result.is_positive_ = !is_positive_;
             return result;
         }
 
-
-
-        void BigInt::operator-=(const BigInt& other) {
+        inline BigInt BigInt::operator-() && {
             is_positive_ = !is_positive_;
-            *this += other;
-            is_positive_ = !is_positive_;
+            return std::move(*this);
         }
+#pragma endregion Unary
 
-#pragma region operator+
-        BigInt& BigInt::operator+=(const BigInt& other) {
-            if (is_positive_ == other.is_positive_) {
-                AddAbs(other);
+#pragma region Add
+        BigInt& BigInt::operator+=(const BigInt& rhs) {
+            if (is_positive_ == rhs.is_positive_) {
+                AddAbs(rhs);
                 return *this;
             }
-            bool is_less = (CompareAbs(other) == -1);
-            SubtractAbs(other, is_less);
+            bool is_less = (CompareAbs(rhs) == -1);
+            SubtractAbs(rhs, is_less);
             is_positive_ = (is_positive_ != is_less);
             return *this;
         }
@@ -309,64 +330,143 @@ namespace made {
             return std::move(*this += rhs);
         }
 
-        inline BigInt BigInt::operator+(BigInt && rhs) const & {
+        inline BigInt BigInt::operator+(BigInt&& rhs) const & {
             return std::move(rhs += *this);
         }
 
-        inline BigInt BigInt::operator+(BigInt && rhs) && {
+        inline BigInt BigInt::operator+(BigInt&& rhs) && {
             return std::move(*this += rhs);
         }
 
         template<typename Tint, class>
-        inline const BigInt operator+(const Tint lhs, const BigInt& rhs) {
+        inline BigInt operator+(const Tint lhs, const BigInt& rhs) {
             return rhs + lhs;
         }
-#pragma endregion operator+
-
-#pragma region operator-
-        const BigInt& BigInt::operator--() {
-            *this -= 1;
-            return *this;
-        }
-
-        const BigInt BigInt::operator--(int) {
-            BigInt result(*this);
-            *this -= 1;
-            return result;
-        }
-
-        const BigInt BigInt::operator-(const BigInt& other) const {
-            BigInt result(*this);
-            result -= other;
-            return result;
-        }
-
-        //template<typename Tint, class>
-        //const BigInt BigInt::operator-(const Tint other) const {
-        //    BigInt result(*this);
-        //    result -= BigInt(other);
-        //    return result;
-        //}
 
         template<typename Tint, class>
-        const BigInt operator-(const Tint lhs, const BigInt& rhs) {
-            return -rhs + lhs;
+        inline BigInt operator+(const Tint lhs, const BigInt&& rhs) {
+            return std::move(rhs + lhs);
         }
-#pragma endregion operator-
+#pragma endregion Add
 
-#pragma region operator++ --
-        BigInt & BigInt::operator++() {
+#pragma region Subtract
+        BigInt & BigInt::operator-=(const BigInt& other) {
+            is_positive_ = !is_positive_;
+            *this += other;
+            is_positive_ = !is_positive_;
+            return *this;
+        }
+
+        inline BigInt BigInt::operator-(const BigInt& rhs) const & {
+            BigInt result(*this);
+            result -= rhs;
+            return result;
+        }
+
+        inline BigInt BigInt::operator-(const BigInt& rhs) && {
+            return std::move(*this -= rhs);
+        }
+
+        inline BigInt BigInt::operator-(BigInt&& rhs) const & {
+            return std::move(std::move(-rhs) += *this);
+        }
+
+        inline BigInt BigInt::operator-(BigInt&& rhs) && {
+            return std::move(*this -= rhs);
+        }
+
+        template<typename Tint, class>
+        inline BigInt operator-(const Tint lhs, const BigInt& rhs) {
+            return BigInt(lhs) - rhs;
+        }
+
+        template<typename Tint, class>
+        inline BigInt operator-(const Tint lhs, const BigInt&& rhs) {
+            return std::move(BigInt(lhs) - rhs);
+        }
+#pragma endregion Subtract
+
+#pragma region Inc(Dec)rements
+        inline BigInt& BigInt::operator++() & {
             *this += 1;
             return *this;
         }
 
-        BigInt BigInt::operator++(int) {
+        inline BigInt BigInt::operator++(int) & {
             BigInt result(*this);
             *this += 1;
-            return result;
+            return std::move(result);
         }
-#pragma endregion operator++ --
 
+        inline BigInt& BigInt::operator--() & {
+            *this -= 1;
+            return *this;
+        }
+
+        inline BigInt BigInt::operator--(int) & {
+            BigInt result(*this);
+            *this -= 1;
+            return std::move(result);
+        }
+#pragma endregion Inc(Dec)rements
+
+#pragma region Comparisors
+        inline bool BigInt::operator<(const BigInt& rhs) const& {
+            return (Compare(rhs) == -1);
+        }
+
+        inline bool BigInt::operator<=(const BigInt& rhs) const& {
+            return (Compare(rhs) != 1);
+        }
+
+        inline bool BigInt::operator==(const BigInt& rhs) const& {
+            return (Compare(rhs) == 0);
+        }
+
+        inline bool BigInt::operator>(const BigInt& rhs) const& {
+            return !(*this <= rhs);
+        }
+
+        inline bool BigInt::operator>=(const BigInt& rhs) const& {
+            return !(*this < rhs);
+        }
+
+        inline bool BigInt::operator!=(const BigInt& rhs) const& {
+            return !(*this == rhs);
+        }
+
+        template<typename Tint, class>
+        inline bool operator<(const Tint lhs, const BigInt& rhs) {
+            return BigInt(lhs) < rhs;
+        }
+
+        template<typename Tint, class>
+        inline bool operator<=(const Tint lhs, const BigInt& rhs) {
+            return BigInt(lhs) <= rhs;
+        }
+
+        template<typename Tint, class>
+        inline bool operator==(const Tint lhs, const BigInt& rhs) {
+            return BigInt(lhs) == rhs;
+        }
+
+        template<typename Tint, class>
+        inline bool operator>(const Tint lhs, const BigInt& rhs) {
+            return BigInt(lhs) > rhs;
+        }
+
+        template<typename Tint, class>
+        inline bool operator>=(const Tint lhs, const BigInt& rhs) {
+            return BigInt(lhs) >= rhs;
+        }
+
+        template<typename Tint, class>
+        inline bool operator!=(const Tint lhs, const BigInt& rhs) {
+            return BigInt(lhs) != rhs;
+        }
+#pragma endregion Comparisors
+
+#pragma region Stream
         std::ostream& operator<<(std::ostream& out, const BigInt& number) {
             std::string result;
             if (!number.is_positive_) {
@@ -375,20 +475,37 @@ namespace made {
             out << number.digits;
             return out;
         }
-
-        bool BigInt::LessAbs(const BigInt& rhs) {
-            const size_t size = digits.size_;
-            if (size < rhs.digits.size_) return true;
-            else if (size > rhs.digits.size_) return false;
-            base_t* a = digits.buffer_ + size - 1;
-            base_t* b = rhs.digits.buffer_ + size - 1;
-            for (; a >= digits.buffer_; --a, --b) {
-                if (*a < *b) return true;
-                else if (*a > *b) return false;
+        std::ostream & operator<<(std::ostream & out, const BigInt::Container& container)
+        {
+            for (size_t i = container.size_ - 1; i > 0; --i) {
+                out << container.buffer_[i];
             }
-            return false;
+            out << container.buffer_[0];
+            return out;
+        }
+#pragma endregion Stream
+
+#pragma region private
+        /*
+         * this <  rhs : -1
+         * this == rhs : 0
+         * this >  rhs : 1
+         */
+        inline int BigInt::Compare(const BigInt& rhs) const {
+            if (is_positive_ != rhs.is_positive_)
+                return is_positive_ ? 1 : -1;
+            int compare = CompareAbs(rhs);
+            if (0 == compare)
+                return 0;
+            int int_positive = int(is_positive_) * 2 - 1;
+            return compare * int_positive;
         }
 
+        /*
+         * this <  rhs : -1
+         * this == rhs : 0
+         * this >  rhs : 1
+         */
         int BigInt::CompareAbs(const BigInt& rhs) const {
             const size_t size = digits.size_;
             if (size < rhs.digits.size_) return -1;
@@ -463,10 +580,11 @@ namespace made {
             // 2. memcpy if *a is &other
             digits.TrimSize();
         }
+#pragma endregion private
 
 #pragma endregion BigInt
 
     }
 }
 
-#endif  // !SERIALIZER_H_
+#endif  // !LONG_ARITHMETIC_H_

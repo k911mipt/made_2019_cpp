@@ -1,5 +1,5 @@
-CC=g++ -std=c++14
-TESTAPP = serializer-test
+CC=g++ -std=c++17
+TESTAPP = bigint-test
 EXEC_TEST=./$(TESTAPP)
 
 all: build_test test
@@ -10,8 +10,9 @@ test:
 build_test: test.o
 	$(CC) -o $(TESTAPP) test.o
 
-test.o: test.cpp serializer.hpp
+test.o: test.cpp long_arithmetic.hpp
 	$(CC) -c test.cpp
 
 clean:
 	rm -rf *.o $(APP) $(TESTAPP)
+
