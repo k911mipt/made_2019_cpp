@@ -58,27 +58,27 @@ namespace made {
 #pragma region Primitive integer compatibility template operators
         class BigInt;
         // Add
-        template<typename Tint, class = typename std::enable_if<std::is_integral<Tint>::value>::type>
+        template<typename Tint, class = typename std::enable_if_t<std::is_integral_v<Tint>>>
         BigInt operator+(const Tint lhs, const BigInt& rhs);
-        template<typename Tint, class = typename std::enable_if<std::is_integral<Tint>::value>::type>
+        template<typename Tint, class = typename std::enable_if_t<std::is_integral_v<Tint>>>
         BigInt operator+(const Tint lhs, const BigInt&& rhs);
         // Subtract
-        template<typename Tint, class = typename std::enable_if<std::is_integral<Tint>::value>::type>
+        template<typename Tint, class = typename std::enable_if_t<std::is_integral_v<Tint>>>
         BigInt operator-(const Tint lhs, const BigInt& rhs);
-        template<typename Tint, class = typename std::enable_if<std::is_integral<Tint>::value>::type>
+        template<typename Tint, class = typename std::enable_if_t<std::is_integral_v<Tint>>>
         BigInt operator-(const Tint lhs, const BigInt&& rhs);
         // Compare
-        template<typename Tint, class = typename std::enable_if<std::is_integral<Tint>::value>::type>
+        template<typename Tint, class = typename std::enable_if_t<std::is_integral_v<Tint>>>
         bool operator<(const Tint lhs, const BigInt& rhs);
-        template<typename Tint, class = typename std::enable_if<std::is_integral<Tint>::value>::type>
+        template<typename Tint, class = typename std::enable_if_t<std::is_integral_v<Tint>>>
         bool operator<=(const Tint lhs, const BigInt& rhs);
-        template<typename Tint, class = typename std::enable_if<std::is_integral<Tint>::value>::type>
+        template<typename Tint, class = typename std::enable_if_t<std::is_integral_v<Tint>>>
         bool operator==(const Tint lhs, const BigInt& rhs);
-        template<typename Tint, class = typename std::enable_if<std::is_integral<Tint>::value>::type>
+        template<typename Tint, class = typename std::enable_if_t<std::is_integral_v<Tint>>>
         bool operator>(const Tint lhs, const BigInt& rhs);
-        template<typename Tint, class = typename std::enable_if<std::is_integral<Tint>::value>::type>
+        template<typename Tint, class = typename std::enable_if_t<std::is_integral_v<Tint>>> 
         bool operator>=(const Tint lhs, const BigInt& rhs);
-        template<typename Tint, class = typename std::enable_if<std::is_integral<Tint>::value>::type>
+        template<typename Tint, class = typename std::enable_if_t<std::is_integral_v<Tint>>>
         bool operator!=(const Tint lhs, const BigInt& rhs);
 #pragma endregion Primitive Integer compatibility template operators
 
@@ -95,7 +95,7 @@ namespace made {
         public:
             // Con(De)structors
             BigInt() = default;
-            template<typename Tint, class = typename std::enable_if<std::is_integral<Tint>::value>::type>
+            template<typename Tint, class = typename std::enable_if_t<std::is_integral_v<Tint>>>
             BigInt(const Tint number);
             BigInt(const BigInt& copied);
             BigInt(BigInt&& moved);
