@@ -18,9 +18,16 @@ namespace made {
         public:
             Formatter(const std::string& str) : source_(str) {}
             template <class T>
-            void PushArgs(T&& value);
+            void PushArgs(T&& value) {
+                std::stringstream stream;
+                stream << value;
+                args_.push_back(stream.str());
+            }
             template <class T, class... TArgs>
-            void PushArgs(T&& value, TArgs&&... args);
+            void PushArgs(T&& value, TArgs&&... args) {
+                PushArgs(std::forward<T>(value));
+                PushArgs(std::forward<TArgs>(args)...);
+            }
             std::string Parse();
         private:
             std::string ParseArgNum(size_t& pos);
@@ -28,19 +35,6 @@ namespace made {
             std::string source_;
             std::vector<std::string> args_;
         };
-
-        template <class T>
-        inline void Formatter::PushArgs(T&& value) {
-            std::stringstream stream;
-            stream << value;
-            args_.push_back(stream.str());
-        }
-
-        template <class T, class... TArgs>
-        inline void Formatter::PushArgs(T&& value, TArgs&&... args) {
-            PushArgs(std::forward<T>(value));
-            PushArgs(std::forward<TArgs>(args)...);
-        }
 
         template <class... TArgs>
         std::string format(const std::string& str, TArgs&&... args) {
