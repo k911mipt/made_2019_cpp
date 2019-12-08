@@ -3,12 +3,9 @@
 
 #include "print_tests.hpp"
 
-
 namespace made {
 
     namespace test {
-        typedef std::vector<TestFunc>(*TestGetter)();
-
 
         int RunTests(const TestGetter& tests_getter) {
             std::vector<TestFunc> tests = tests_getter();
@@ -46,6 +43,7 @@ namespace made {
             }
             return 0;
         }
+
     }
 
 }
