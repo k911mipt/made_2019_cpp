@@ -305,7 +305,7 @@ public:
                 return;
             }
             const pointer old_end = end_;
-            end_ = std::fill_n(old_end, newsize - old_size, default_value);
+            end_ = std::uninitialized_fill_n(old_end, newsize - old_size, default_value);
         }
     }
 
@@ -370,13 +370,13 @@ private:
         try {
             alloc_traits::construct(alloc_, new_begin + where_offset, std::forward<VT>(values)...);
             constructed_first = new_begin + where_offset;
-            if (where_ptr == end_) {
-                std::move(begin_, end_, new_begin);
+            if (where_ptr == end_) { // strong guarantee
+                std::uninitialized_move(begin_, end_, new_begin);
             }
             else {
-                std::move(begin_, where_ptr, new_begin);
+                std::uninitialized_move(begin_, where_ptr, new_begin);
                 constructed_first = new_begin;
-                std::move(where_ptr, end_, new_begin + where_offset + 1);
+                std::uninitialized_move(where_ptr, end_, new_begin + where_offset + 1);
             }
         }
         catch (...) {
@@ -403,7 +403,7 @@ private:
     void ReallocateExactly(const size_type new_capacity) {
         const pointer new_begin = alloc_.allocate(new_capacity);
         try {
-            std::move(begin_, end_, new_begin);
+            std::uninitialized_move(begin_, end_, new_begin);
         }
         catch (...) {
             alloc_.deallocate(new_begin, new_capacity);
@@ -441,8 +441,8 @@ private:
         pointer appended_last = appended_first;
 
         try {
-            appended_last = std::fill_n(appended_first, new_size - old_size, value);
-            std::move(begin_, end_, new_begin);
+            appended_last = std::uninitialized_fill_n(appended_first, new_size - old_size, value);
+            std::uninitialized_move(begin_, end_, new_begin);
         }
         catch (...) {
             Destroy(appended_first, appended_last);
@@ -451,6 +451,27 @@ private:
         }
         SwapDestroying(new_begin, new_size, new_capacity);
     }
+
+
+    //void _Umove_if_noexcept1(pointer _First, pointer _Last, pointer _Dest, std::true_type) {
+    //    // move [_First, _Last) to raw _Dest, using allocator
+    //    _Uninitialized_move(_First, _Last, _Dest, _Getal());
+    //}
+
+    //pointer _Umove(pointer _First, pointer _Last, pointer _Dest) { // move [_First, _Last) to raw _Dest, using allocator
+    //    return _Uninitialized_move(_First, _Last, _Dest, _Getal());
+    //}
+
+    //void _Umove_if_noexcept1(pointer _First, pointer _Last, pointer _Dest, std::false_type) {
+    //    // copy [_First, _Last) to raw _Dest, using allocator
+    //    _Uninitialized_copy(_First, _Last, _Dest, _Getal());
+    //}
+
+    //void _Umove_if_noexcept(pointer _First, pointer _Last, pointer _Dest) {
+    //    // move_if_noexcept [_First, _Last) to raw _Dest, using allocator
+    //    _Umove_if_noexcept1(_First, _Last, _Dest,
+    //        std::bool_constant<std::disjunction<std::is_nothrow_move_constructible<T>, std::negation<std::is_copy_constructible<T>>>::value>{});
+    //}
 };
 
 _STL_END

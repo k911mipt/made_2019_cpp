@@ -6,6 +6,7 @@
 #include <functional>
 
 #include "vector.hpp"
+#include <deque>
 
 namespace made {
     namespace test {
@@ -27,6 +28,60 @@ namespace made {
                 int x;
                 B() :x(counter++) {}
                 B(int _x) :x(_x) {}
+            };
+
+            class Complex {
+            public:
+                Complex() : size_(1), arr_(new int[size_]) {}
+                Complex(size_t size) : size_(size), arr_(new int[size_]) {
+                    Fill();
+                    std::deque<int> a;
+                }
+                Complex(const Complex& copied) : size_(copied.size_), arr_(new int[size_]) {
+                    Copy(copied.arr_);
+                }
+                Complex(Complex&& moved) noexcept
+                    : size_(moved.size_)
+                {
+                    arr_ = moved.arr_;
+                    moved.arr_ = nullptr;
+                    moved.size_ = 0;
+                }
+                Complex& operator=(const Complex& copied) {
+                    if (this == &copied)
+                        return *this;
+                    delete[] arr_;
+                    size_ = copied.size_;
+                    arr_ = new int[size_];
+                    Copy(copied.arr_);
+                    return *this;
+                }
+                Complex& operator=(Complex&& moved) noexcept {
+                    if (this == &moved)
+                        return *this;
+                    delete[] arr_;
+                    size_ = moved.size_;
+                    arr_ = moved.arr_;
+                    moved.arr_ = nullptr;
+                    moved.size_ = 0;
+                    return *this;
+                }
+                ~Complex() {
+                    Fill();
+                    delete[] arr_;
+                }
+            private:
+                void Fill() {
+                    for (size_t i = 0; i < size_; ++i)
+                        arr_[i] = i;
+                }
+                void Copy(int* arr) {
+                    for (size_t i = 0; i < size_; ++i) {
+                        arr_[i] = arr[i];
+                    }
+                }
+                size_t size_;
+                int* arr_;
             };
 
 #pragma region typed_tests
@@ -159,6 +214,8 @@ namespace made {
                 return v.size() == 2 && v.front().x == 1 && (v.end() - 1)->x == 0;
             }
 
+
+
             std::vector<TestFunc> get_other_test_functions() {
                 return {
                     sort_using_iterators,
@@ -169,10 +226,67 @@ namespace made {
                     check_resize,
                     check_resize_constructing,
                     check_pop_back,
-                    check_erase
+                    check_erase,
                 };
             }
 #pragma endregion other_tests
+
+#pragma region uninitialized_move_tests
+            bool check_complex_emplace() {
+                std::cout << "testing umove: emplace with realloc";
+                Vector<Complex> v(1, Complex(5));
+                v.emplace(v.begin(), Complex(5));
+                return true;
+            }
+
+            bool check_complex_reserve() {
+                std::cout << "testing umove: reserve";
+                Vector<Complex> v(1, Complex(5));
+                v.reserve(3);
+                return true;
+            }
+
+            bool check_complex_emplace_at_uninit_space() {
+                std::cout << "testing umove: emplace at reserved space";
+                Vector<Complex> v(3, Complex(5));
+                //std::vector<Complex> v(1, Complex(5));
+                v.reserve(6);
+                v.emplace(v.begin(), Complex(2));
+                return true;
+            }
+
+            bool check_complex_resize_realloc() {
+                std::cout << "testing umove: resize with reallocating";
+                Vector<Complex> v(3, Complex(5));
+                v.resize(6, Complex(1));
+                return true;
+            }
+
+            bool check_complex_erase_single() {
+                std::cout << "testing umove: erase single with move";
+                Vector<Complex> v(3, Complex(5));
+                v.erase(v.begin());
+                return true;
+            }
+
+            bool check_complex_erase_range() {
+                std::cout << "testing umove: erase range with move";
+                Vector<Complex> v(6, Complex(3));
+                v.erase(v.begin() + 1, v.end() - 2);
+                return true;
+            }
+
+            std::vector<TestFunc> get_uninitialized_move_test_functions() {
+                return {
+                    check_complex_emplace,
+                    check_complex_reserve,
+                    check_complex_emplace_at_uninit_space,
+                    check_complex_resize_realloc,
+                    check_complex_erase_single,
+                    check_complex_erase_range,
+                };
+            }
+#pragma endregion uninitialized_move_tests
 
             template <typename T>
             struct type_wrapper { using type = T; };
@@ -193,8 +307,10 @@ namespace made {
             }
 
             std::vector<TestFunc> GetTests() {
-                std::vector<TestFunc> result = get_type_shared_tests<int, A, B>();
+                std::vector<TestFunc> result = get_type_shared_tests<int, A, B, Complex>();
                 std::vector<TestFunc> other = get_other_test_functions();
+                result.insert(result.end(), other.begin(), other.end());
+                other = get_uninitialized_move_test_functions();
                 result.insert(result.end(), other.begin(), other.end());
                 return result;
             }
