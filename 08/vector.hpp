@@ -452,26 +452,6 @@ private:
         SwapDestroying(new_begin, new_size, new_capacity);
     }
 
-
-    //void _Umove_if_noexcept1(pointer _First, pointer _Last, pointer _Dest, std::true_type) {
-    //    // move [_First, _Last) to raw _Dest, using allocator
-    //    _Uninitialized_move(_First, _Last, _Dest, _Getal());
-    //}
-
-    //pointer _Umove(pointer _First, pointer _Last, pointer _Dest) { // move [_First, _Last) to raw _Dest, using allocator
-    //    return _Uninitialized_move(_First, _Last, _Dest, _Getal());
-    //}
-
-    //void _Umove_if_noexcept1(pointer _First, pointer _Last, pointer _Dest, std::false_type) {
-    //    // copy [_First, _Last) to raw _Dest, using allocator
-    //    _Uninitialized_copy(_First, _Last, _Dest, _Getal());
-    //}
-
-    //void _Umove_if_noexcept(pointer _First, pointer _Last, pointer _Dest) {
-    //    // move_if_noexcept [_First, _Last) to raw _Dest, using allocator
-    //    _Umove_if_noexcept1(_First, _Last, _Dest,
-    //        std::bool_constant<std::disjunction<std::is_nothrow_move_constructible<T>, std::negation<std::is_copy_constructible<T>>>::value>{});
-    //}
 };
 
 _STL_END
