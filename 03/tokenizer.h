@@ -29,7 +29,7 @@ namespace made {
                 }
                 return number_;
             }
-            const std::string getData() {
+            const std::string& getData() {
                 return data_;
             }
         private:
