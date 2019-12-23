@@ -164,7 +164,7 @@ private:
 public:
     Vector()
         : alloc_(allocator_type()),
-        capacity_(1),
+        capacity_(0),
         begin_(alloc_.allocate(capacity_)),
         end_(begin_)
     {
