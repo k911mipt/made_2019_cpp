@@ -82,7 +82,7 @@ namespace made {
             void ProcessBeforeParsingEvents() { for (auto cb : beforeEvents_) { cb(); } }
             void ProcessAfterParsingEvents() { for (auto cb : afterEvents_) { cb(); } }
             void SkipSpaces(const std::string& line, size_t& index);
-            TokenType SkipNonSpaces(const std::string& line, size_t& index);
+            TokenType DetectTokenType(const std::string& line, size_t& index);
         };
 
         void Parser::Parse(const std::string& line) {
@@ -95,7 +95,7 @@ namespace made {
             SkipSpaces(line, begin);
             while (begin < line.size()) {
                 end = begin;
-                TokenType tokenType = SkipNonSpaces(line, end);
+                TokenType tokenType = DetectTokenType(line, end);
                 Token token = Token(line.substr(begin, end - begin), tokenType);
                 tokens_.push_back(token);
                 ProcessTokenEvents(token);
@@ -109,7 +109,7 @@ namespace made {
             for (; (index < line.size()) && std::isspace(line[index]); ++index);
         }
 
-        TokenType Parser::SkipNonSpaces(const std::string& line, size_t& index) {
+        TokenType Parser::DetectTokenType(const std::string& line, size_t& index) {
             assert(index < line.size());
             bool result = true;
             index += line[index] == '-'; // skip unary minus
