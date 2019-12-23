@@ -24,10 +24,16 @@ namespace made {
 
             class B {
             public:
-                inline static int counter = 0;
+                inline static int counter_ = 0;
                 int x;
-                B() :x(counter++) {}
+                B() :x(counter_++) {}
                 B(int _x) :x(_x) {}
+            };
+
+            class BadMove : public std::exception {
+            public:
+                BadMove() noexcept : std::exception() {}
+                const char* what() { return "BadMove"; }
             };
 
             class Complex {
@@ -35,14 +41,14 @@ namespace made {
                 Complex() : size_(1), arr_(new int[size_]) {}
                 Complex(size_t size) : size_(size), arr_(new int[size_]) {
                     Fill();
-                    std::deque<int> a;
                 }
                 Complex(const Complex& copied) : size_(copied.size_), arr_(new int[size_]) {
                     Copy(copied.arr_);
                 }
-                Complex(Complex&& moved) noexcept
+                Complex(Complex&& moved)
                     : size_(moved.size_)
                 {
+                    ThrowIfThresholdReached();
                     arr_ = moved.arr_;
                     moved.arr_ = nullptr;
                     moved.size_ = 0;
@@ -56,9 +62,10 @@ namespace made {
                     Copy(copied.arr_);
                     return *this;
                 }
-                Complex& operator=(Complex&& moved) noexcept {
+                Complex& operator=(Complex&& moved) {
                     if (this == &moved)
                         return *this;
+                    ThrowIfThresholdReached();
                     delete[] arr_;
                     size_ = moved.size_;
                     arr_ = moved.arr_;
@@ -70,6 +77,17 @@ namespace made {
                     Fill();
                     delete[] arr_;
                 }
+
+                void ThrowIfThresholdReached() {
+                    if (move_throw_enabled_ && ++counter_ > throw_threshold_) {
+                        throw BadMove();
+                    }
+                }
+
+                static void EnableMoveThrowCounter(size_t threshold) {
+                    throw_threshold_ = threshold;
+                    move_throw_enabled_ = true;
+                }
             private:
                 void Fill() {
                     for (size_t i = 0; i < size_; ++i)
@@ -80,6 +98,9 @@ namespace made {
                         arr_[i] = arr[i];
                     }
                 }
+                static inline size_t counter_ = 0;
+                static inline size_t throw_threshold_ = 0;
+                static inline bool move_throw_enabled_ = false;
                 size_t size_;
                 int* arr_;
             };
@@ -193,7 +214,7 @@ namespace made {
 
             bool check_resize_constructing() {
                 std::cout << "testing resize constructing single time";
-                B::counter = 9;
+                B::counter_ = 9;
                 Vector<B> v{ 1, 3, 4, 2, 0 };
                 v.resize(15);
                 return v[1].x == 3 && v[13].x == 9 && v[14].x == 9;
@@ -276,6 +297,19 @@ namespace made {
                 return true;
             }
 
+            bool check_complex_move_throw() {
+                std::cout << "testing umove: throw at moving";
+                Complex::EnableMoveThrowCounter(5);
+                Vector<Complex> v(6, Complex(3));
+                try {
+                    v.emplace(v.begin() + 3, Complex(15));
+                }
+                catch (BadMove & e) {
+                    return true;
+                }
+                return false;
+            }
+
             std::vector<TestFunc> get_uninitialized_move_test_functions() {
                 return {
                     check_complex_emplace,
@@ -284,6 +318,7 @@ namespace made {
                     check_complex_resize_realloc,
                     check_complex_erase_single,
                     check_complex_erase_range,
+                    check_complex_move_throw
                 };
             }
 #pragma endregion uninitialized_move_tests
