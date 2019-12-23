@@ -72,7 +72,7 @@ namespace made {
                 std::cout << "Registering callback, expecting 2 calls";
                 Parser parser;
                 int x = 0;
-                parser.RegisterTokenEvent([&x](Token _) { ++x; });
+                parser.RegisterTokenEvent([&x](Token) { ++x; });
                 parser.Parse("0abc 073732");
                 if (x != 2)
                     return false;
@@ -83,7 +83,7 @@ namespace made {
                 std::cout << "Registering string callback, expecting 1 calls";
                 Parser parser;
                 int x = 0;
-                parser.RegisterCustomTokenEvent([&x](Token _) { ++x; }, TokenType::STRING);
+                parser.RegisterTokenEvent([&x](const std::string&) { ++x; });
                 parser.Parse("0abc 073732");
                 if (x != 1)
                     return false;
@@ -94,7 +94,7 @@ namespace made {
                 std::cout << "Registering number callback, expecting 2 calls";
                 Parser parser;
                 int x = 0;
-                parser.RegisterCustomTokenEvent([&x](Token _) { ++x; }, TokenType::NUMBER);
+                parser.RegisterTokenEvent([&x](const int) { ++x; });
                 parser.Parse("12 0abc 073732");
                 if (x != 2)
                     return false;
@@ -105,7 +105,7 @@ namespace made {
                 std::cout << "Registering number callback, expect count sum of numbers in data";
                 Parser parser;
                 int x = 0;
-                parser.RegisterCustomTokenEvent([&x](Token token) { x += token.getNumber(); }, TokenType::NUMBER);
+                parser.RegisterTokenEvent([&x](const int value) { x += value; });
                 parser.Parse("   12 0abc 073732   ");
                 if (x != 73744)
                     return false;

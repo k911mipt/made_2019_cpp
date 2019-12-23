@@ -23,13 +23,13 @@ namespace made {
             Token(const std::string& init_data, TokenType tokenType) : data_(init_data), type(tokenType), number_(std::atoi(data_.c_str())) {
             }
             const TokenType type;
-            const int getNumber() {
+            const int getNumber() const {
                 if (type != NUMBER) {
                     throw std::domain_error("can't get number from a string token");
                 }
                 return number_;
             }
-            const std::string& getData() {
+            const std::string& getData() const {
                 return data_;
             }
         private:
@@ -39,13 +39,21 @@ namespace made {
 
         typedef std::function<void(Token)> TokenEvent;
         typedef std::function<void()> ParsingEvent;
+        typedef std::function<void(const std::string&)> TokenStringEvent;
+        typedef std::function<void(const int)> TokenNumberEvent;
 
         class Parser {
         public:
             void Parse(const std::string& line);
             const std::vector<Token> GetTokens() { return tokens_; }
             void RegisterTokenEvent(TokenEvent cb) { tokensEvents_.push_back(cb); }
-            void RegisterCustomTokenEvent(TokenEvent cb, TokenType tokenType) { tokensCustomEvents_[tokenType].push_back(cb); }
+            void RegisterTokenEvent(TokenStringEvent cb) {
+                tokensStringEvents_.push_back(cb);
+            }
+            void RegisterTokenEvent(TokenNumberEvent cb) {
+                tokensNumberEvents_.push_back(cb);
+            }
+
             void RegisterBeforeParsingEvent(ParsingEvent& cb) { beforeEvents_.push_back(cb); }
             void RegisterBeforeParsingEvent(ParsingEvent&& cb) { beforeEvents_.push_back(cb); }
             void RegisterAfterParsingEvent(ParsingEvent& cb) { afterEvents_.push_back(cb); }
@@ -55,10 +63,21 @@ namespace made {
             std::vector<ParsingEvent> beforeEvents_;
             std::vector<ParsingEvent> afterEvents_;
             std::vector<TokenEvent> tokensEvents_;
-            std::vector<TokenEvent> tokensCustomEvents_[TokenType::COUNT];
+            std::vector<TokenStringEvent> tokensStringEvents_;
+            std::vector<TokenNumberEvent> tokensNumberEvents_;
             void ProcessTokenEvents(const Token& token) {
-                for (auto cb : tokensEvents_) { cb(token); }
-                for (auto cb : tokensCustomEvents_[token.type]) { cb(token); }
+                for (auto cb : tokensEvents_) {
+                    cb(token);
+                }
+
+                switch (token.type) {
+                case TokenType::NUMBER:
+                    for (auto cb : tokensNumberEvents_) { cb(token.getNumber()); };
+                    break;
+                case TokenType::STRING:
+                    for (auto cb : tokensStringEvents_) { cb(token.getData()); };
+                    break;
+                }
             }
             void ProcessBeforeParsingEvents() { for (auto cb : beforeEvents_) { cb(); } }
             void ProcessAfterParsingEvents() { for (auto cb : afterEvents_) { cb(); } }
