@@ -42,7 +42,7 @@ namespace made {
 
         class Parser {
         public:
-            void Parse(std::string&& line);
+            void Parse(const std::string& line);
             const std::vector<Token> GetTokens() { return tokens_; }
             void RegisterTokenEvent(TokenEvent cb) { tokensEvents_.push_back(cb); }
             void RegisterCustomTokenEvent(TokenEvent cb, TokenType tokenType) { tokensCustomEvents_[tokenType].push_back(cb); }
@@ -56,17 +56,17 @@ namespace made {
             std::vector<ParsingEvent> afterEvents_;
             std::vector<TokenEvent> tokensEvents_;
             std::vector<TokenEvent> tokensCustomEvents_[TokenType::COUNT];
-            void ProcessTokenEvents(Token token) {
+            void ProcessTokenEvents(const Token& token) {
                 for (auto cb : tokensEvents_) { cb(token); }
                 for (auto cb : tokensCustomEvents_[token.type]) { cb(token); }
             }
             void ProcessBeforeParsingEvents() { for (auto cb : beforeEvents_) { cb(); } }
             void ProcessAfterParsingEvents() { for (auto cb : afterEvents_) { cb(); } }
-            void SkipSpaces(std::string& line, size_t& index) { for (; (index < line.size()) && std::isspace(line[index]); ++index); }
-            TokenType SkipNonSpaces(std::string& line, size_t& index);
+            void SkipSpaces(const std::string& line, size_t& index);
+            TokenType SkipNonSpaces(const std::string& line, size_t& index);
         };
 
-        void Parser::Parse(std::string&& line) {
+        void Parser::Parse(const std::string& line) {
             ProcessBeforeParsingEvents();
             if (line.size() == 0) {
                 return;
@@ -86,7 +86,11 @@ namespace made {
             ProcessAfterParsingEvents();
         }
 
-        TokenType Parser::SkipNonSpaces(std::string& line, size_t& index) {
+        void Parser::SkipSpaces(const std::string& line, size_t& index) {
+            for (; (index < line.size()) && std::isspace(line[index]); ++index);
+        }
+
+        TokenType Parser::SkipNonSpaces(const std::string& line, size_t& index) {
             assert(index < line.size());
             bool result = true;
             index += line[index] == '-'; // skip unary minus
