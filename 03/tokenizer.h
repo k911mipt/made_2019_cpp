@@ -20,7 +20,7 @@ namespace made {
 
         class Token {
         public:
-            Token(const std::string &init_data, TokenType tokenType) : data_(init_data), type(tokenType), number_(std::atoi(data_.c_str())) {
+            Token(const std::string& init_data, TokenType tokenType) : data_(init_data), type(tokenType), number_(std::atoi(data_.c_str())) {
             }
             const TokenType type;
             const int getNumber() {
@@ -42,28 +42,31 @@ namespace made {
 
         class Parser {
         public:
-            void Parse(std::string &&line);
+            void Parse(std::string&& line);
             const std::vector<Token> GetTokens() { return tokens_; }
             void RegisterTokenEvent(TokenEvent cb) { tokensEvents_.push_back(cb); }
             void RegisterCustomTokenEvent(TokenEvent cb, TokenType tokenType) { tokensCustomEvents_[tokenType].push_back(cb); }
-            void RegisterBeforeParsingEvent(ParsingEvent cb) { parsingEvents_[0].push_back(cb); }
-            void RegisterAfterParsingEvent(ParsingEvent cb) { parsingEvents_[1].push_back(cb); }
+            void RegisterBeforeParsingEvent(ParsingEvent& cb) { beforeEvents_.push_back(cb); }
+            void RegisterBeforeParsingEvent(ParsingEvent&& cb) { beforeEvents_.push_back(cb); }
+            void RegisterAfterParsingEvent(ParsingEvent& cb) { afterEvents_.push_back(cb); }
+            void RegisterAfterParsingEvent(ParsingEvent&& cb) { afterEvents_.push_back(cb); }
         private:
             std::vector<Token> tokens_;
-            std::vector<ParsingEvent> parsingEvents_[2];
+            std::vector<ParsingEvent> beforeEvents_;
+            std::vector<ParsingEvent> afterEvents_;
             std::vector<TokenEvent> tokensEvents_;
             std::vector<TokenEvent> tokensCustomEvents_[TokenType::COUNT];
             void ProcessTokenEvents(Token token) {
                 for (auto cb : tokensEvents_) { cb(token); }
                 for (auto cb : tokensCustomEvents_[token.type]) { cb(token); }
             }
-            void ProcessBeforeParsingEvents() { for (auto cb : parsingEvents_[0]) { cb(); } }
-            void ProcessAfterParsingEvents() { for (auto cb : parsingEvents_[1]) { cb(); } }
-            void SkipSpaces(std::string &line, size_t &index) { for (; (index < line.size()) && std::isspace(line[index]); ++index); }
-            TokenType SkipNonSpaces(std::string &line, size_t &index);
+            void ProcessBeforeParsingEvents() { for (auto cb : beforeEvents_) { cb(); } }
+            void ProcessAfterParsingEvents() { for (auto cb : afterEvents_) { cb(); } }
+            void SkipSpaces(std::string& line, size_t& index) { for (; (index < line.size()) && std::isspace(line[index]); ++index); }
+            TokenType SkipNonSpaces(std::string& line, size_t& index);
         };
 
-        void Parser::Parse(std::string &&line) {
+        void Parser::Parse(std::string&& line) {
             ProcessBeforeParsingEvents();
             if (line.size() == 0) {
                 return;
@@ -83,7 +86,7 @@ namespace made {
             ProcessAfterParsingEvents();
         }
 
-        TokenType Parser::SkipNonSpaces(std::string &line, size_t &index) {
+        TokenType Parser::SkipNonSpaces(std::string& line, size_t& index) {
             assert(index < line.size());
             bool result = true;
             index += line[index] == '-'; // skip unary minus
